@@ -2,12 +2,15 @@ name: Raccolta Traffico Soccorso
 
 on:
   schedule:
-    # 5 rilevazioni/giorno: mattina, metà mattina, pranzo, pomeriggio, sera (ora IT ≈ UTC+1/2)
-    - cron: '0 6 * * *'   # 07:00 IT – picco mattutino
-    - cron: '0 9 * * *'   # 10:00 IT – post-rush
-    - cron: '0 11 * * *'  # 12:00 IT – ora di pranzo
-    - cron: '0 15 * * *'  # 16:00 IT – pomeriggio
-    - cron: '0 17 * * *'  # 18:00 IT – picco serale
+    # Orari italiani (CEST = UTC+2, ora legale)
+    - cron: '0 5 * * *'   # 07:00 IT
+    - cron: '0 8 * * *'   # 10:00 IT
+    - cron: '0 10 * * *'  # 12:00 IT
+    - cron: '0 14 * * *'  # 16:00 IT
+    - cron: '0 16 * * *'  # 18:00 IT
+    - cron: '0 17 * * *'  # 19:00 IT
+    - cron: '0 18 * * *'  # 20:00 IT
+    - cron: '0 21 * * *'  # 23:00 IT
   workflow_dispatch:  # permette run manuale dalla UI GitHub
 
 jobs:
