@@ -2,19 +2,32 @@ name: Raccolta Traffico Soccorso
 
 on:
   schedule:
-    # Orari italiani (CEST = UTC+2, ora legale)
-    - cron: '0 5 * * *'   # 07:00 IT
-    - cron: '0 8 * * *'   # 10:00 IT
-    - cron: '0 10 * * *'  # 12:00 IT
-    - cron: '0 14 * * *'  # 16:00 IT
-    - cron: '0 16 * * *'  # 18:00 IT
-    - cron: '0 17 * * *'  # 19:00 IT
-    - cron: '0 18 * * *'  # 20:00 IT
-    - cron: '0 21 * * *'  # 23:00 IT
-  workflow_dispatch:  # permette run manuale dalla UI GitHub
+    - cron: '0 * * * *'   # ogni ora – l'orario italiano è gestito dal job
+  workflow_dispatch:
 
 jobs:
+  check-ora:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.ora.outputs.should_run }}
+    steps:
+      - name: Controlla orario italiano
+        id: ora
+        run: |
+          python3 - <<'EOF'
+          from datetime import datetime
+          import zoneinfo, os
+          ora_it = datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).hour
+          orari  = [7, 10, 12, 16, 18, 19, 20, 23]
+          result = 'true' if ora_it in orari else 'false'
+          print(f"Ora italiana: {ora_it}:00  →  should_run={result}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"should_run={result}\n")
+          EOF
+
   collect:
+    needs: check-ora
+    if: needs.check-ora.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
