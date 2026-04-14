@@ -16,11 +16,11 @@ from datetime import datetime, timezone
 
 # ─── Punti di misura ───────────────────────────────────────────────────────────
 PUNTI_MISURA = [
-    {"id": "soccorso_nodo_principale", "nome": "Snodo del Soccorso (nodo centrale)", "lat": 43.8975, "lon": 11.0718},
-    {"id": "via_pistoiese_est",        "nome": "Via Pistoiese → Prato centro",       "lat": 43.8942, "lon": 11.0820},
-    {"id": "via_pistoiese_ovest",      "nome": "Via Pistoiese → Pistoia",            "lat": 43.9005, "lon": 11.0620},
-    {"id": "viale_galilei",            "nome": "Viale Galileo Galilei",              "lat": 43.8912, "lon": 11.0795},
-    {"id": "via_del_soccorso",         "nome": "Via del Soccorso",                   "lat": 43.8960, "lon": 11.0742},
+    {"id": "viale_da_vinci_ovest",   "nome": "Viale L. da Vinci (↑ Pistoia)",      "lat": 43.8972, "lon": 11.0680},
+    {"id": "viale_da_vinci_est",     "nome": "Viale L. da Vinci (↓ Prato)",        "lat": 43.8958, "lon": 11.0795},
+    {"id": "via_traversa_pistoiese", "nome": "Via Traversa Pistoiese",             "lat": 43.9005, "lon": 11.0728},
+    {"id": "via_del_soccorso",       "nome": "Via del Soccorso",                   "lat": 43.8968, "lon": 11.0748},
+    {"id": "via_di_reggiana",        "nome": "Via di Reggiana",                    "lat": 43.8918, "lon": 11.0762},
 ]
 
 TOMTOM_URL  = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
