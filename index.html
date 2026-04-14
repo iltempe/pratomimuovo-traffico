@@ -6,15 +6,18 @@
   <title>PratoMiMuovo – Traffico Soccorso</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #eee; height: 100vh; display: flex; flex-direction: column; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #eee; display: flex; flex-direction: column; min-height: 100vh; }
 
     header {
       padding: 12px 20px;
       background: #1a1d27;
       border-bottom: 1px solid #2a2d3a;
       display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
     }
     header h1 { font-size: 17px; font-weight: 600; color: #7c9ef8; }
     #last-update { font-size: 12px; color: #666; }
@@ -25,7 +28,7 @@
       overflow-x: auto; flex-shrink: 0;
     }
     .card {
-      min-width: 170px; background: #1a1d27; border: 1px solid #2a2d3a;
+      min-width: 160px; background: #1a1d27; border: 1px solid #2a2d3a;
       border-radius: 10px; padding: 10px 14px; flex-shrink: 0;
     }
     .card .nome { font-size: 11px; color: #888; margin-bottom: 4px; line-height: 1.3; }
@@ -35,16 +38,33 @@
       display: inline-block; margin-top: 6px; padding: 2px 8px;
       border-radius: 20px; font-size: 10px; font-weight: 600;
     }
-    .livello-1 .velocita { color: #00c853; }
-    .livello-1 .badge { background: #003316; color: #00c853; }
-    .livello-2 .velocita { color: #ffab00; }
-    .livello-2 .badge { background: #332200; color: #ffab00; }
-    .livello-3 .velocita { color: #ff5252; }
-    .livello-3 .badge { background: #330000; color: #ff5252; }
-    .livello-0 .velocita { color: #888; }
-    .livello-0 .badge { background: #222; color: #888; }
+    .livello-1 .velocita { color: #00c853; } .livello-1 .badge { background: #003316; color: #00c853; }
+    .livello-2 .velocita { color: #ffab00; } .livello-2 .badge { background: #332200; color: #ffab00; }
+    .livello-3 .velocita { color: #ff5252; } .livello-3 .badge { background: #330000; color: #ff5252; }
+    .livello-0 .velocita { color: #888; }    .livello-0 .badge { background: #222; color: #888; }
 
-    #map { flex: 1; }
+    /* Sezione grafico storico */
+    .history-panel {
+      background: #13151f; border-bottom: 1px solid #2a2d3a;
+      padding: 14px 20px; flex-shrink: 0;
+    }
+    .history-panel h2 {
+      font-size: 13px; color: #7c9ef8; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .history-controls {
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .btn-range {
+      padding: 4px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;
+      border: 1px solid #2a2d3a; background: #1a1d27; color: #aaa;
+      transition: all 0.2s;
+    }
+    .btn-range.active { background: #7c9ef8; color: #0f1117; border-color: #7c9ef8; }
+    #chart-container { position: relative; height: 200px; }
+
+    /* Mappa */
+    #map { height: 380px; flex-shrink: 0; }
 
     .chart-panel {
       position: absolute; bottom: 10px; right: 10px; z-index: 1000;
@@ -59,6 +79,8 @@
     .chart-val { width: 38px; text-align: right; color: #eee; }
 
     .loading { text-align: center; padding: 40px; color: #555; font-size: 14px; }
+
+    .map-wrap { position: relative; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -68,51 +90,67 @@
   <span id="last-update">Caricamento...</span>
 </header>
 
+<!-- Snapshot più recente -->
 <div class="cards" id="cards">
   <div class="loading">Caricamento dati...</div>
 </div>
 
-<div id="map"></div>
+<!-- Grafico storico -->
+<div class="history-panel">
+  <h2>📈 Storico velocità (km/h)</h2>
+  <div class="history-controls">
+    <button class="btn-range active" data-days="2">2 giorni</button>
+    <button class="btn-range" data-days="7">7 giorni</button>
+    <button class="btn-range" data-days="30">30 giorni</button>
+  </div>
+  <div id="chart-container">
+    <canvas id="history-chart"></canvas>
+  </div>
+</div>
 
-<div class="chart-panel" id="chart-panel" style="display:none">
-  <h3>📊 Velocità attuali (km/h)</h3>
-  <div id="chart-bars"></div>
+<!-- Mappa -->
+<div class="map-wrap">
+  <div id="map"></div>
+  <div class="chart-panel" id="chart-panel" style="display:none">
+    <h3>📊 Velocità attuali (km/h)</h3>
+    <div id="chart-bars"></div>
+  </div>
 </div>
 
 <script>
-  const SUPABASE_URL     = 'https://pfzfegfaagzeupopqaqj.supabase.co';
-  const SUPABASE_ANON    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmemZlZ2ZhYWd6ZXVwb3BxYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTAwMDcsImV4cCI6MjA5MTc2NjAwN30.E7Mc3T9pOWgRawHvAzi7Bzc3cpJC7FHwQ-OFnMc95E8';
-  const TOMTOM_KEY       = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
+  const SUPABASE_URL  = 'https://pfzfegfaagzeupopqaqj.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmemZlZ2ZhYWd6ZXVwb3BxYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTAwMDcsImV4cCI6MjA5MTc2NjAwN30.E7Mc3T9pOWgRawHvAzi7Bzc3cpJC7FHwQ-OFnMc95E8';
+  const TOMTOM_KEY    = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
 
   const PRATO_CENTER = [43.8965, 11.0730];
   const etichette = { 0: 'n/d', 1: 'Scorrevole', 2: 'Rallentato', 3: 'Congestionato' };
   const colori    = { 0: '#888', 1: '#00c853', 2: '#ffab00', 3: '#ff5252' };
 
-  // Mappa
-  const map = L.map('map').setView(PRATO_CENTER, 15);
+  // Palette per le linee del grafico storico (una per punto)
+  const PALETTE = ['#7c9ef8', '#00c853', '#ffab00', '#ff5252', '#c084fc'];
 
+  // ─── Mappa ────────────────────────────────────────────────────────────────────
+  const map = L.map('map').setView(PRATO_CENTER, 15);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap', maxZoom: 19
   }).addTo(map);
-
-  // Layer traffico TomTom (tile)
   L.tileLayer(
     `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_KEY}&tileSize=256`,
     { opacity: 0.75, maxZoom: 19 }
   ).addTo(map);
 
   let markers = {};
+  let historyChart = null;
+  let currentDays = 2;
 
-  // ─── Fetch ultimi dati da Supabase ────────────────────────────────────────
+  // ─── Fetch ultimi dati (snapshot) ────────────────────────────────────────────
   async function fetchUltimiDati() {
-    // Prende il timestamp più recente
     const r1 = await fetch(
       `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp&order=timestamp.desc&limit=1`,
       { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
     );
     const [last] = await r1.json();
     if (!last) return null;
-
     const ts = last.timestamp;
     const r2 = await fetch(
       `${SUPABASE_URL}/rest/v1/rilevazioni?timestamp=eq.${encodeURIComponent(ts)}&order=punto_id.asc`,
@@ -121,6 +159,17 @@
     return { timestamp: ts, rows: await r2.json() };
   }
 
+  // ─── Fetch dati storici ───────────────────────────────────────────────────────
+  async function fetchStorico(days) {
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp,punto_id,punto_nome,velocita_attuale&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.asc&limit=2000`,
+      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
+    );
+    return r.json();
+  }
+
+  // ─── Render cards ─────────────────────────────────────────────────────────────
   function renderCards(rows) {
     const container = document.getElementById('cards');
     container.innerHTML = '';
@@ -138,35 +187,30 @@
     });
   }
 
+  // ─── Render markers mappa ─────────────────────────────────────────────────────
   function renderMarkers(rows) {
-    // Rimuovi vecchi marker
     Object.values(markers).forEach(m => map.removeLayer(m));
     markers = {};
-
     rows.forEach(r => {
       const lvl   = r.livello_conf || 0;
       const color = colori[lvl];
       const vel   = r.velocita_attuale ? `${Math.round(r.velocita_attuale)} km/h` : 'n/d';
       const icon  = L.divIcon({
         className: '',
-        html: `<div style="
-          background:${color}; border:2px solid #fff; border-radius:50%;
-          width:18px; height:18px; box-shadow:0 0 6px ${color}88;
-        "></div>`,
-        iconSize: [18, 18], iconAnchor: [9, 9]
+        html: `<div style="background:${color};border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 6px ${color}88;"></div>`,
+        iconSize: [18,18], iconAnchor: [9,9]
       });
-      const m = L.marker([r.lat, r.lon], { icon })
+      markers[r.punto_id] = L.marker([r.lat, r.lon], { icon })
         .addTo(map)
         .bindPopup(`<b>${r.punto_nome}</b><br>${vel}<br>${etichette[lvl]}`);
-      markers[r.punto_id] = m;
     });
   }
 
+  // ─── Render barre snapshot ────────────────────────────────────────────────────
   function renderChart(rows) {
-    const panel = document.getElementById('chart-panel');
-    const bars  = document.getElementById('chart-bars');
+    const panel  = document.getElementById('chart-panel');
+    const bars   = document.getElementById('chart-bars');
     const maxVel = Math.max(...rows.map(r => r.velocita_libera || 0), 80);
-
     bars.innerHTML = rows.map(r => {
       const vel  = r.velocita_attuale || 0;
       const lvl  = r.livello_conf || 0;
@@ -175,13 +219,80 @@
       return `
         <div class="chart-bar-row">
           <div class="chart-label" title="${r.punto_nome}">${nome}</div>
-          <div class="chart-bar-bg">
-            <div class="chart-bar-fill" style="width:${pct}%; background:${colori[lvl]}"></div>
-          </div>
+          <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${pct}%;background:${colori[lvl]}"></div></div>
           <div class="chart-val">${vel ? Math.round(vel) : '—'}</div>
         </div>`;
     }).join('');
     panel.style.display = 'block';
+  }
+
+  // ─── Render grafico storico ───────────────────────────────────────────────────
+  function renderStorico(rows) {
+    // Raggruppa per punto_id
+    const byPunto = {};
+    rows.forEach(r => {
+      if (!r.velocita_attuale) return;
+      if (!byPunto[r.punto_id]) byPunto[r.punto_id] = { nome: r.punto_nome, punti: [] };
+      byPunto[r.punto_id].punti.push({ x: new Date(r.timestamp), y: Math.round(r.velocita_attuale) });
+    });
+
+    const puntiIds = Object.keys(byPunto);
+    const datasets = puntiIds.map((id, i) => ({
+      label: byPunto[id].nome.replace('→', '›').replace('(nodo centrale)', '').trim(),
+      data:  byPunto[id].punti,
+      borderColor: PALETTE[i % PALETTE.length],
+      backgroundColor: PALETTE[i % PALETTE.length] + '22',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      tension: 0.3,
+      fill: false,
+    }));
+
+    const ctx = document.getElementById('history-chart').getContext('2d');
+    if (historyChart) historyChart.destroy();
+
+    historyChart = new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#aaa', font: { size: 11 }, boxWidth: 12, padding: 12 }
+          },
+          tooltip: {
+            backgroundColor: '#1a1d27',
+            borderColor: '#2a2d3a',
+            borderWidth: 1,
+            titleColor: '#7c9ef8',
+            bodyColor: '#ccc',
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} km/h`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              tooltipFormat: 'dd/MM HH:mm',
+              displayFormats: { hour: 'HH:mm', day: 'dd/MM' }
+            },
+            ticks: { color: '#555', maxTicksLimit: 8 },
+            grid:  { color: '#1e2030' }
+          },
+          y: {
+            title: { display: true, text: 'km/h', color: '#555', font: { size: 11 } },
+            ticks: { color: '#555' },
+            grid:  { color: '#1e2030' },
+            min: 0
+          }
+        }
+      }
+    });
   }
 
   function formatTimestamp(ts) {
@@ -190,6 +301,7 @@
     return `Aggiornato: ${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'})}`;
   }
 
+  // ─── Aggiornamento principale ─────────────────────────────────────────────────
   async function aggiorna() {
     try {
       const data = await fetchUltimiDati();
@@ -208,9 +320,36 @@
     }
   }
 
-  // Carica subito e poi ogni 60s
+  async function aggiornaStorico(days) {
+    try {
+      const rows = await fetchStorico(days);
+      if (rows.length === 0) {
+        document.getElementById('chart-container').innerHTML =
+          '<div class="loading" style="padding:60px 0">Nessun dato storico ancora disponibile.</div>';
+        return;
+      }
+      renderStorico(rows);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // ─── Bottoni range ────────────────────────────────────────────────────────────
+  document.querySelectorAll('.btn-range').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDays = parseInt(btn.dataset.days);
+      aggiornaStorico(currentDays);
+    });
+  });
+
+  // Carica tutto al primo accesso
   aggiorna();
-  setInterval(aggiorna, 60000);
+  aggiornaStorico(currentDays);
+
+  // Refresh snapshot ogni 5 minuti
+  setInterval(aggiorna, 300000);
 </script>
 </body>
 </html>
