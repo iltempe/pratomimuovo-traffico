@@ -17,10 +17,15 @@ jobs:
           python3 - <<'EOF'
           from datetime import datetime
           import zoneinfo, os
-          ora_it = datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).hour
-          orari  = [7, 10, 12, 16, 18, 19, 20, 23]
-          result = 'true' if ora_it in orari else 'false'
-          print(f"Ora italiana: {ora_it}:00  →  should_run={result}")
+          event = os.environ.get('GITHUB_EVENT_NAME', '')
+          if event == 'workflow_dispatch':
+              result = 'true'
+              print("Run manuale → skip controllo orario")
+          else:
+              ora_it = datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).hour
+              orari  = [7, 10, 12, 16, 18, 19, 20, 23]
+              result = 'true' if ora_it in orari else 'false'
+              print(f"Ora italiana: {ora_it}:00  →  should_run={result}")
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"should_run={result}\n")
           EOF
