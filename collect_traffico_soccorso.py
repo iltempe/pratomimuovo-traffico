@@ -16,11 +16,11 @@ from datetime import datetime, timezone
 
 # ─── Punti di misura ───────────────────────────────────────────────────────────
 PUNTI_MISURA = [
-    {"id": "viale_da_vinci_ovest",   "nome": "Viale L. da Vinci (↑ Pistoia)",      "lat": 43.8972, "lon": 11.0680},
-    {"id": "viale_da_vinci_est",     "nome": "Viale L. da Vinci (↓ Prato)",        "lat": 43.8958, "lon": 11.0795},
-    {"id": "via_traversa_pistoiese", "nome": "Via Traversa Pistoiese",             "lat": 43.9005, "lon": 11.0728},
-    {"id": "via_del_soccorso",       "nome": "Via del Soccorso",                   "lat": 43.8968, "lon": 11.0748},
-    {"id": "via_di_reggiana",        "nome": "Via di Reggiana",                    "lat": 43.8918, "lon": 11.0762},
+    {"id": "via_pistoiese_nw",     "nome": "Via Pistoiese (→ Pistoia)",        "lat": 43.8950, "lon": 11.0659},
+    {"id": "via_pistoiese_snodo",  "nome": "Via Pistoiese (Snodo Soccorso)",   "lat": 43.8921, "lon": 11.0721},
+    {"id": "viale_nam_dinh_ovest", "nome": "Viale Nam Dinh (← ovest)",         "lat": 43.8928, "lon": 11.0741},
+    {"id": "viale_nam_dinh_est",   "nome": "Viale Nam Dinh (→ est)",           "lat": 43.8956, "lon": 11.0786},
+    {"id": "via_federigo_melis",   "nome": "Via Federigo Melis (↑ nord)",      "lat": 43.9000, "lon": 11.0731},
 ]
 
 TOMTOM_URL  = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
