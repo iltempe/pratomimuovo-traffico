@@ -16,11 +16,12 @@ from datetime import datetime, timezone
 
 # ─── Punti di misura ───────────────────────────────────────────────────────────
 PUNTI_MISURA = [
-    {"id": "via_pistoiese_nw",     "nome": "Via Pistoiese (→ Pistoia)",        "lat": 43.8950, "lon": 11.0659},
-    {"id": "via_pistoiese_snodo",  "nome": "Via Pistoiese (Snodo Soccorso)",   "lat": 43.8921, "lon": 11.0721},
-    {"id": "viale_nam_dinh_ovest", "nome": "Viale Nam Dinh (← ovest)",         "lat": 43.8928, "lon": 11.0741},
-    {"id": "viale_nam_dinh_est",   "nome": "Viale Nam Dinh (→ est)",           "lat": 43.8956, "lon": 11.0786},
-    {"id": "via_federigo_melis",   "nome": "Via Federigo Melis (↑ nord)",      "lat": 43.9000, "lon": 11.0731},
+    # Tutti su Viale Leonardo da Vinci (SS719), attorno all'incrocio con Via Pietro Nenni
+    {"id": "vldv_ovest_lontano",  "nome": "Viale L. da Vinci – Ovest (lontano)",  "lat": 43.8806, "lon": 11.0530},
+    {"id": "vldv_ovest_vicino",   "nome": "Viale L. da Vinci – Ovest (vicino)",   "lat": 43.8803, "lon": 11.0568},
+    {"id": "vldv_incrocio",       "nome": "Viale L. da Vinci × Via P. Nenni",     "lat": 43.8800, "lon": 11.0600},
+    {"id": "vldv_est_vicino",     "nome": "Viale L. da Vinci – Est (vicino)",     "lat": 43.8799, "lon": 11.0630},
+    {"id": "vldv_est_lontano",    "nome": "Viale L. da Vinci – Est (lontano)",    "lat": 43.8799, "lon": 11.0658},
 ]
 
 TOMTOM_URL  = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
