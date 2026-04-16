@@ -37,21 +37,22 @@ POSIZIONI = [
 ]
 
 # 32 punti: per ogni posizione due misure
-#   _fi  →Firenze  lat - 0.0002  (carreggiata sud / direzione est)
-#   _pi  →Pistoia  lat + 0.0002  (carreggiata nord / direzione ovest)
+# SS719 percorre direzione ~ESE (bearing 114°); perpendicolare = SSO/NNE
+#   _fi  →Firenze  offset SSO: lat-0.0003, lon-0.0001  (carreggiata destra andando SE)
+#   _pi  →Pistoia  offset NNE: lat+0.0003, lon+0.0001  (carreggiata destra andando NO)
 PUNTI_MISURA = []
 for _p in POSIZIONI:
     PUNTI_MISURA.append({
         "id":   _p["id"] + "_fi",
         "nome": _p["nome"] + " →Firenze",
-        "lat":  round(_p["lat"] - 0.0002, 5),
-        "lon":  _p["lon"],
+        "lat":  round(_p["lat"] - 0.0003, 5),
+        "lon":  round(_p["lon"] - 0.0001, 5),
     })
     PUNTI_MISURA.append({
         "id":   _p["id"] + "_pi",
         "nome": _p["nome"] + " →Pistoia",
-        "lat":  round(_p["lat"] + 0.0002, 5),
-        "lon":  _p["lon"],
+        "lat":  round(_p["lat"] + 0.0003, 5),
+        "lon":  round(_p["lon"] + 0.0001, 5),
     })
 
 TOMTOM_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
