@@ -88,6 +88,38 @@
     /* Mappa */
     #map { height:420px; }
     .empty { text-align:center; padding:32px; color:#445; font-size:13px; }
+
+    /* Info panel */
+    #btn-info {
+      padding:4px 12px; border-radius:6px; font-size:11px; cursor:pointer;
+      background:#1e2240; border:1px solid #2a2f50; color:#aaa;
+    }
+    #info-overlay {
+      display:none; position:fixed; inset:0; z-index:99999;
+      background:rgba(0,0,0,.6); backdrop-filter:blur(3px);
+    }
+    #info-overlay.open { display:flex; align-items:center; justify-content:center; }
+    #info-box {
+      background:#131728; border:1px solid #2a2f50; border-radius:14px;
+      padding:28px 32px; max-width:480px; width:90%; position:relative;
+    }
+    #info-box h3 { font-size:15px; color:#7b9ef7; margin-bottom:18px; }
+    #info-box h4 { font-size:12px; color:#889; text-transform:uppercase;
+                   letter-spacing:.07em; margin:16px 0 6px; }
+    #info-box p, #info-box li { font-size:13px; color:#c0c8e8; line-height:1.6; }
+    #info-box ul { padding-left:16px; }
+    #info-box a { color:#7b9ef7; text-decoration:none; }
+    #info-box a:hover { text-decoration:underline; }
+    #info-close {
+      position:absolute; top:14px; right:16px; background:none;
+      border:none; color:#667; font-size:20px; cursor:pointer; line-height:1;
+    }
+    #info-close:hover { color:#aaa; }
+    .info-tag {
+      display:inline-block; padding:2px 8px; border-radius:10px;
+      font-size:10px; font-weight:600; background:#1e2240; color:#7b9ef7;
+      margin-right:4px; margin-top:4px;
+    }
   </style>
 </head>
 <body>
@@ -97,11 +129,46 @@
     <h1>🚦 PratoMiMuovo</h1>
     <span class="hdr-sub">Viale Leonardo da Vinci – Prato</span>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
+  <div style="display:flex;align-items:center;gap:8px">
     <span id="last-update">Caricamento…</span>
     <button id="btn-refresh">↺ Aggiorna</button>
+    <button id="btn-info">ℹ Info</button>
   </div>
 </header>
+
+<!-- Info panel -->
+<div id="info-overlay">
+  <div id="info-box">
+    <button id="info-close">✕</button>
+    <h3>ℹ Informazioni</h3>
+
+    <h4>Fonte dati traffico</h4>
+    <p>I dati di velocità e flusso sono forniti dalle API <strong>TomTom Traffic Flow</strong>
+       (Flow Segment Data v4). Le rilevazioni vengono effettuate su 16 posizioni lungo
+       Viale Leonardo da Vinci (Prato), in entrambe le direzioni di marcia, fino a
+       14 volte al giorno negli orari di punta.</p>
+
+    <h4>Tecnologie</h4>
+    <span class="info-tag">TomTom Traffic API</span>
+    <span class="info-tag">Supabase</span>
+    <span class="info-tag">GitHub Actions</span>
+    <span class="info-tag">Leaflet.js</span>
+    <span class="info-tag">Chart.js</span>
+    <span class="info-tag">GitHub Pages</span>
+
+    <h4>Area monitorata</h4>
+    <p>Viale Leonardo da Vinci (SS719), dal km 0 (Casale) al km ~5 verso Firenze,
+       con focus sul <em>Restringimento del Soccorso</em> (incrocio con Via Pietro Nenni).</p>
+
+    <h4>Autore</h4>
+    <p>
+      Progetto open source realizzato da<br>
+      <a href="https://github.com/iltempe" target="_blank" rel="noopener">
+        github.com/iltempe
+      </a>
+    </p>
+  </div>
+</div>
 
 <!-- KPI -->
 <div class="kpi-bar">
@@ -413,6 +480,12 @@
   aggiorna();
   aggiornaStorico();
   setInterval(aggiorna, 300000);
+
+  // Info panel
+  const overlay = document.getElementById('info-overlay');
+  document.getElementById('btn-info').addEventListener('click', () => overlay.classList.add('open'));
+  document.getElementById('info-close').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
 </script>
 </body>
 </html>
