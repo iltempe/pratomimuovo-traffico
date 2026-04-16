@@ -3,118 +3,173 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PratoMiMuovo – Restringimento del Soccorso</title>
+  <title>PratoMiMuovo – Viale L. da Vinci</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #eee; display: flex; flex-direction: column; min-height: 100vh; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:#0d0f18; color:#dde1f0; min-height:100vh; }
 
+    /* Header */
     header {
-      padding: 12px 20px;
-      background: #1a1d27;
-      border-bottom: 1px solid #2a2d3a;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0;
+      background:#131728; border-bottom:1px solid #1e2240;
+      padding:10px 20px; display:flex; align-items:center;
+      justify-content:space-between; flex-wrap:wrap; gap:8px;
+      position:sticky; top:0; z-index:9999;
     }
-    header h1 { font-size: 17px; font-weight: 600; color: #7c9ef8; }
-    #last-update { font-size: 12px; color: #666; }
+    .hdr-left { display:flex; align-items:center; gap:10px; }
+    header h1 { font-size:15px; font-weight:700; color:#7b9ef7; white-space:nowrap; }
+    .hdr-sub { font-size:11px; color:#556; }
+    #last-update { font-size:11px; color:#667; }
+    #btn-refresh {
+      padding:4px 12px; border-radius:6px; font-size:11px; cursor:pointer;
+      background:#1e2240; border:1px solid #2a2f50; color:#aaa;
+    }
 
-    .cards {
-      display: flex; gap: 10px; padding: 12px 16px;
-      background: #13151f; border-bottom: 1px solid #2a2d3a;
-      overflow-x: auto; flex-shrink: 0;
-    }
-    .card {
-      min-width: 160px; background: #1a1d27; border: 1px solid #2a2d3a;
-      border-radius: 10px; padding: 10px 14px; flex-shrink: 0;
-    }
-    .card .nome { font-size: 11px; color: #888; margin-bottom: 4px; line-height: 1.3; }
-    .card .velocita { font-size: 22px; font-weight: 700; }
-    .card .freeflow { font-size: 11px; color: #666; margin-top: 2px; }
-    .card .badge {
-      display: inline-block; margin-top: 6px; padding: 2px 8px;
-      border-radius: 20px; font-size: 10px; font-weight: 600;
-    }
-    .livello-1 .velocita { color: #00c853; } .livello-1 .badge { background: #003316; color: #00c853; }
-    .livello-2 .velocita { color: #ffab00; } .livello-2 .badge { background: #332200; color: #ffab00; }
-    .livello-3 .velocita { color: #ff5252; } .livello-3 .badge { background: #330000; color: #ff5252; }
-    .livello-0 .velocita { color: #888; }    .livello-0 .badge { background: #222; color: #888; }
+    /* KPI bar */
+    .kpi-bar { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid #1e2240; }
+    .kpi { padding:12px 18px; text-align:center; border-right:1px solid #1e2240; background:#10121c; }
+    .kpi:last-child { border-right:none; }
+    .kpi-label { font-size:10px; color:#556; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+    .kpi-val { font-size:20px; font-weight:700; }
+    .kpi-sub { font-size:10px; color:#556; margin-top:2px; }
 
-    /* Sezione grafico storico */
-    .history-panel {
-      background: #13151f; border-bottom: 1px solid #2a2d3a;
-      padding: 14px 20px; flex-shrink: 0;
+    /* Sezioni */
+    .section { border-bottom:1px solid #1e2240; }
+    .sec-hdr {
+      padding:10px 18px; display:flex; align-items:center;
+      justify-content:space-between; flex-wrap:wrap; gap:8px; background:#10121c;
     }
-    .history-panel h2 {
-      font-size: 13px; color: #7c9ef8; margin-bottom: 12px;
-      display: flex; align-items: center; gap: 8px;
+    .sec-hdr h2 { font-size:13px; color:#7b9ef7; font-weight:600; }
+
+    /* Legenda */
+    .legend { display:flex; align-items:center; gap:10px; font-size:11px; color:#889; flex-wrap:wrap; }
+    .leg-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; }
+
+    /* Tabella */
+    .tbl-wrap { overflow-x:auto; }
+    table.loc-tbl { width:100%; border-collapse:collapse; }
+    .loc-tbl thead th {
+      padding:7px 14px; background:#0d0f18; font-size:11px; color:#7b9ef7;
+      font-weight:600; text-align:left; border-bottom:1px solid #1e2240; white-space:nowrap;
     }
-    .history-controls {
-      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+    .loc-tbl thead th:not(:first-child) { text-align:center; }
+    .loc-tbl tbody tr { border-bottom:1px solid #131728; }
+    .loc-tbl tbody tr:hover td { background:#131728; }
+    .loc-tbl td { padding:7px 14px; font-size:12px; vertical-align:middle; }
+    .loc-tbl td.pos-name { color:#c0c8e8; font-weight:500; white-space:nowrap; min-width:140px; }
+    .loc-tbl tr.sep td { border-top:2px solid #1e2240; }
+
+    .dir-cell { display:flex; align-items:center; justify-content:center; gap:8px; }
+    .speed-val { font-size:17px; font-weight:700; min-width:36px; text-align:right; }
+    .badge { display:inline-block; padding:2px 7px; border-radius:12px; font-size:9px; font-weight:700; white-space:nowrap; }
+
+    .l1 .speed-val { color:#00c853; } .l1 .badge { background:#002b12; color:#00c853; }
+    .l2 .speed-val { color:#ffab00; } .l2 .badge { background:#2e1e00; color:#ffab00; }
+    .l3 .speed-val { color:#ff5252; } .l3 .badge { background:#2e0000; color:#ff5252; }
+    .l0 .speed-val { color:#445;   } .l0 .badge { background:#1a1a22; color:#556;   }
+
+    /* Grafico */
+    .history-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    #loc-select {
+      padding:4px 8px; border-radius:6px; font-size:11px;
+      background:#1a1d30; border:1px solid #2a2f50; color:#dde1f0; cursor:pointer;
     }
+    .range-btns { display:flex; gap:5px; }
     .btn-range {
-      padding: 4px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;
-      border: 1px solid #2a2d3a; background: #1a1d27; color: #aaa;
-      transition: all 0.2s;
+      padding:3px 10px; border-radius:5px; font-size:11px; cursor:pointer;
+      border:1px solid #2a2f50; background:#1a1d30; color:#889;
     }
-    .btn-range.active { background: #7c9ef8; color: #0f1117; border-color: #7c9ef8; }
-    #chart-container { position: relative; height: 200px; }
+    .btn-range.active { background:#7b9ef7; color:#0d0f18; border-color:#7b9ef7; }
+    #chart-wrap { padding:4px 16px 16px; height:230px; }
 
     /* Mappa */
-    #map { height: 380px; flex-shrink: 0; }
-
-    .chart-panel {
-      position: absolute; bottom: 10px; right: 10px; z-index: 1000;
-      background: rgba(20,22,32,0.96); border: 1px solid #2a2d3a;
-      border-radius: 10px; padding: 14px; width: 280px;
-    }
-    .chart-panel h3 { font-size: 13px; color: #7c9ef8; margin-bottom: 10px; }
-    .chart-bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 11px; }
-    .chart-label { width: 90px; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chart-bar-bg { flex: 1; background: #1e2030; border-radius: 4px; height: 14px; overflow: hidden; }
-    .chart-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
-    .chart-val { width: 38px; text-align: right; color: #eee; }
-
-    .loading { text-align: center; padding: 40px; color: #555; font-size: 14px; }
-
-    .map-wrap { position: relative; flex-shrink: 0; }
+    #map { height:420px; }
+    .empty { text-align:center; padding:32px; color:#445; font-size:13px; }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>🚦 PratoMiMuovo — Restringimento del Soccorso (Viale L. da Vinci)</h1>
-  <span id="last-update">Caricamento...</span>
+  <div class="hdr-left">
+    <h1>🚦 PratoMiMuovo</h1>
+    <span class="hdr-sub">Viale Leonardo da Vinci – Prato</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="last-update">Caricamento…</span>
+    <button id="btn-refresh">↺ Aggiorna</button>
+  </div>
 </header>
 
-<!-- Snapshot più recente -->
-<div class="cards" id="cards">
-  <div class="loading">Caricamento dati...</div>
+<!-- KPI -->
+<div class="kpi-bar">
+  <div class="kpi">
+    <div class="kpi-label">→ Firenze (media)</div>
+    <div class="kpi-val" id="kpi-fi-val">—</div>
+    <div class="kpi-sub" id="kpi-fi-sub">km/h</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">→ Pistoia (media)</div>
+    <div class="kpi-val" id="kpi-pi-val">—</div>
+    <div class="kpi-sub" id="kpi-pi-sub">km/h</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Zona più critica</div>
+    <div class="kpi-val" id="kpi-worst-val" style="font-size:13px;padding-top:3px">—</div>
+    <div class="kpi-sub" id="kpi-worst-sub"></div>
+  </div>
 </div>
 
-<!-- Grafico storico -->
-<div class="history-panel">
-  <h2>📈 Storico velocità (km/h)</h2>
-  <div class="history-controls">
-    <button class="btn-range active" data-days="2">2 giorni</button>
-    <button class="btn-range" data-days="7">7 giorni</button>
-    <button class="btn-range" data-days="30">30 giorni</button>
+<!-- Tabella posizioni -->
+<div class="section">
+  <div class="sec-hdr">
+    <h2>📍 Rilevazioni in tempo reale</h2>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#00c853"></span>Scorrevole</span>
+      <span><span class="leg-dot" style="background:#ffab00"></span>Rallentato</span>
+      <span><span class="leg-dot" style="background:#ff5252"></span>Congestionato</span>
+    </div>
   </div>
-  <div id="chart-container">
-    <canvas id="history-chart"></canvas>
+  <div class="tbl-wrap">
+    <table class="loc-tbl">
+      <thead>
+        <tr>
+          <th>Posizione (O → E)</th>
+          <th>➡ verso Firenze</th>
+          <th>⬅ verso Pistoia</th>
+        </tr>
+      </thead>
+      <tbody id="loc-tbody">
+        <tr><td colspan="3" class="empty">Caricamento…</td></tr>
+      </tbody>
+    </table>
   </div>
+</div>
+
+<!-- Storico -->
+<div class="section">
+  <div class="sec-hdr">
+    <h2>📈 Storico velocità (km/h)</h2>
+    <div class="history-controls">
+      <select id="loc-select">
+        <option value="all">Tutte le posizioni (media)</option>
+      </select>
+      <div class="range-btns">
+        <button class="btn-range active" data-days="2">2 gg</button>
+        <button class="btn-range" data-days="7">7 gg</button>
+        <button class="btn-range" data-days="30">30 gg</button>
+      </div>
+    </div>
+  </div>
+  <div id="chart-wrap"><canvas id="history-chart"></canvas></div>
 </div>
 
 <!-- Mappa -->
-<div class="map-wrap">
+<div class="section">
+  <div class="sec-hdr"><h2>🗺️ Mappa traffico</h2></div>
   <div id="map"></div>
-  <div class="chart-panel" id="chart-panel" style="display:none">
-    <h3>📊 Velocità attuali (km/h)</h3>
-    <div id="chart-bars"></div>
-  </div>
 </div>
 
 <script>
@@ -122,233 +177,241 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmemZlZ2ZhYWd6ZXVwb3BxYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTAwMDcsImV4cCI6MjA5MTc2NjAwN30.E7Mc3T9pOWgRawHvAzi7Bzc3cpJC7FHwQ-OFnMc95E8';
   const TOMTOM_KEY    = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
 
-  const PRATO_CENTER = [43.8800, 11.0605];  // centro dei 11 punti OSM su Viale L. da Vinci
-  const etichette = { 0: 'n/d', 1: 'Scorrevole', 2: 'Rallentato', 3: 'Congestionato' };
-  const colori    = { 0: '#888', 1: '#00c853', 2: '#ffab00', 3: '#ff5252' };
+  const MAP_CENTER = [43.876, 11.069];
+  const ETICHETTE  = { 0:'n/d', 1:'Scorrevole', 2:'Rallentato', 3:'Congestionato' };
+  const COLORI     = { 0:'#445', 1:'#00c853', 2:'#ffab00', 3:'#ff5252' };
 
-  // Palette per le linee del grafico storico (una per punto)
-  const PALETTE = ['#7c9ef8', '#00c853', '#ffab00', '#ff5252', '#c084fc'];
+  const POSIZIONI_ORDER = [
+    'vldv_w3','vldv_w2','vldv_w1','vldv_ov_lon','vldv_ov_vic',
+    'vldv_incrocio','vldv_es_vic','vldv_es_lon',
+    'vldv_e1','vldv_e2','vldv_e3',
+    'vldv_e4','vldv_e5','vldv_e6','vldv_e7','vldv_e8'
+  ];
+  const FIRST_EAST_EXT = 'vldv_e4';
 
-  // ─── Mappa ────────────────────────────────────────────────────────────────────
-  const map = L.map('map').setView(PRATO_CENTER, 14);
+  const map = L.map('map').setView(MAP_CENTER, 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap', maxZoom: 19
+    attribution:'© OpenStreetMap', maxZoom:19
   }).addTo(map);
   L.tileLayer(
     `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_KEY}&tileSize=256`,
-    { opacity: 0.75, maxZoom: 19 }
+    { opacity:0.7, maxZoom:19 }
   ).addTo(map);
 
-  let markers = {};
-  let historyChart = null;
+  let mapMarkers = [];
+  let histChart  = null;
   let currentDays = 2;
 
-  // ─── Fetch ultimi dati (snapshot) ────────────────────────────────────────────
-  async function fetchUltimiDati() {
-    const r1 = await fetch(
+  const hdrs = () => ({ apikey:SUPABASE_ANON, Authorization:`Bearer ${SUPABASE_ANON}` });
+  const locId = pid => pid.replace(/_fi$|_pi$/, '');
+  const dir   = pid => pid.endsWith('_fi') ? 'fi' : 'pi';
+  const cls   = lvl => 'l' + (lvl || 0);
+
+  function dirCell(row) {
+    if (!row) return `<td><div class="dir-cell l0"><span class="speed-val">—</span><span style="font-size:10px;color:#445">km/h</span><span class="badge">n/d</span></div></td>`;
+    const lvl = row.livello_conf || 0;
+    return `<td><div class="dir-cell ${cls(lvl)}">
+      <span class="speed-val">${row.velocita_attuale ? Math.round(row.velocita_attuale) : '—'}</span>
+      <span style="font-size:10px;color:#556">km/h</span>
+      <span class="badge">${ETICHETTE[lvl]}</span>
+    </div></td>`;
+  }
+
+  async function fetchSnapshot() {
+    const [last] = await fetch(
       `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp&order=timestamp.desc&limit=1`,
-      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
-    );
-    const [last] = await r1.json();
+      { headers:hdrs() }
+    ).then(r => r.json());
     if (!last) return null;
-    const ts = last.timestamp;
-    const r2 = await fetch(
-      `${SUPABASE_URL}/rest/v1/rilevazioni?timestamp=eq.${encodeURIComponent(ts)}&order=punto_id.asc`,
-      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
-    );
-    return { timestamp: ts, rows: await r2.json() };
+    const rows = await fetch(
+      `${SUPABASE_URL}/rest/v1/rilevazioni?timestamp=eq.${encodeURIComponent(last.timestamp)}&order=punto_id.asc&limit=100`,
+      { headers:hdrs() }
+    ).then(r => r.json());
+    return { ts: last.timestamp, rows };
   }
 
-  // ─── Fetch dati storici ───────────────────────────────────────────────────────
   async function fetchStorico(days) {
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp,punto_id,punto_nome,velocita_attuale&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.asc&limit=2000`,
-      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
-    );
-    return r.json();
+    const since = new Date(Date.now() - days*86400000).toISOString();
+    return fetch(
+      `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp,punto_id,velocita_attuale` +
+      `&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.asc&limit=10000`,
+      { headers:hdrs() }
+    ).then(r => r.json());
   }
 
-  // ─── Render cards ─────────────────────────────────────────────────────────────
-  function renderCards(rows) {
-    const container = document.getElementById('cards');
-    container.innerHTML = '';
+  function groupByLoc(rows) {
+    const m = {};
     rows.forEach(r => {
-      const lvl = r.livello_conf || 0;
-      const vel = r.velocita_attuale ? `${Math.round(r.velocita_attuale)}` : '—';
-      const ff  = r.velocita_libera  ? `freeflow: ${Math.round(r.velocita_libera)} km/h` : '';
-      container.innerHTML += `
-        <div class="card livello-${lvl}">
-          <div class="nome">${r.punto_nome}</div>
-          <div class="velocita">${vel} <small style="font-size:13px;font-weight:400">km/h</small></div>
-          <div class="freeflow">${ff}</div>
-          <span class="badge">${etichette[lvl]}</span>
-        </div>`;
+      const lid = locId(r.punto_id), d = dir(r.punto_id);
+      if (!m[lid]) m[lid] = { nome: (r.punto_nome||'').replace(/ →(Firenze|Pistoia)$/,''), fi:null, pi:null };
+      m[lid][d] = r;
     });
+    return m;
   }
 
-  // ─── Render markers mappa ─────────────────────────────────────────────────────
-  function renderMarkers(rows) {
-    Object.values(markers).forEach(m => map.removeLayer(m));
-    markers = {};
-    rows.forEach(r => {
-      const lvl   = r.livello_conf || 0;
-      const color = colori[lvl];
-      const vel   = r.velocita_attuale ? `${Math.round(r.velocita_attuale)} km/h` : 'n/d';
-      const icon  = L.divIcon({
-        className: '',
-        html: `<div style="background:${color};border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 6px ${color}88;"></div>`,
-        iconSize: [18,18], iconAnchor: [9,9]
+  function renderKpi(byLoc) {
+    const fi=[], pi=[];
+    let wLvl=0, wNome='', wVel=null;
+    Object.values(byLoc).forEach(loc => {
+      if (loc.fi?.velocita_attuale) fi.push(loc.fi.velocita_attuale);
+      if (loc.pi?.velocita_attuale) pi.push(loc.pi.velocita_attuale);
+      [loc.fi, loc.pi].forEach(r => {
+        if (!r) return;
+        const l = r.livello_conf||0;
+        if (l > wLvl || (l===wLvl && r.velocita_attuale < (wVel??999)))
+          { wLvl=l; wNome=loc.nome; wVel=r.velocita_attuale; }
       });
-      markers[r.punto_id] = L.marker([r.lat, r.lon], { icon })
-        .addTo(map)
-        .bindPopup(`<b>${r.punto_nome}</b><br>${vel}<br>${etichette[lvl]}`);
     });
+    const avg = a => a.length ? Math.round(a.reduce((x,y)=>x+y,0)/a.length) : null;
+    const aFi = avg(fi), aPi = avg(pi);
+
+    const speedClass = v => v==null?'l0': v<40?'l3': v<65?'l2':'l1';
+    const fEl = document.getElementById('kpi-fi-val');
+    fEl.textContent = aFi??'—'; fEl.className='kpi-val '+speedClass(aFi);
+    const pEl = document.getElementById('kpi-pi-val');
+    pEl.textContent = aPi??'—'; pEl.className='kpi-val '+speedClass(aPi);
+
+    const wEl = document.getElementById('kpi-worst-val');
+    wEl.textContent = wNome||'—'; wEl.style.color = COLORI[wLvl];
+    document.getElementById('kpi-worst-sub').textContent =
+      wLvl>0 ? ETICHETTE[wLvl]+(wVel?` · ${Math.round(wVel)} km/h`:'') : '';
   }
 
-  // ─── Render barre snapshot ────────────────────────────────────────────────────
-  function renderChart(rows) {
-    const panel  = document.getElementById('chart-panel');
-    const bars   = document.getElementById('chart-bars');
-    const maxVel = Math.max(...rows.map(r => r.velocita_libera || 0), 80);
-    bars.innerHTML = rows.map(r => {
-      const vel  = r.velocita_attuale || 0;
-      const lvl  = r.livello_conf || 0;
-      const pct  = Math.round((vel / maxVel) * 100);
-      const nome = r.punto_nome.replace('→', '›').substring(0, 18);
-      return `
-        <div class="chart-bar-row">
-          <div class="chart-label" title="${r.punto_nome}">${nome}</div>
-          <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${pct}%;background:${colori[lvl]}"></div></div>
-          <div class="chart-val">${vel ? Math.round(vel) : '—'}</div>
-        </div>`;
-    }).join('');
-    panel.style.display = 'block';
+  function renderTable(byLoc) {
+    const tbody = document.getElementById('loc-tbody');
+    tbody.innerHTML = '';
+    POSIZIONI_ORDER.forEach(lid => {
+      const loc = byLoc[lid]; if (!loc) return;
+      const tr = document.createElement('tr');
+      if (lid === FIRST_EAST_EXT) tr.classList.add('sep');
+      tr.innerHTML = `<td class="pos-name">${loc.nome}</td>${dirCell(loc.fi)}${dirCell(loc.pi)}`;
+      tbody.appendChild(tr);
+    });
+    if (!tbody.children.length)
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">Nessun dato.</td></tr>';
   }
 
-  // ─── Render grafico storico ───────────────────────────────────────────────────
-  function renderStorico(rows) {
-    // Raggruppa per punto_id
-    const byPunto = {};
+  function renderMarkers(rows) {
+    mapMarkers.forEach(m => map.removeLayer(m));
+    mapMarkers = [];
     rows.forEach(r => {
-      if (!r.velocita_attuale) return;
-      if (!byPunto[r.punto_id]) byPunto[r.punto_id] = { nome: r.punto_nome, punti: [] };
-      byPunto[r.punto_id].punti.push({ x: new Date(r.timestamp), y: Math.round(r.velocita_attuale) });
+      const lvl=r.livello_conf||0, col=COLORI[lvl], d=dir(r.punto_id);
+      const shape = d==='fi'
+        ? `<div style="width:12px;height:12px;background:${col};border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px ${col}99"></div>`
+        : `<div style="width:12px;height:12px;background:${col};border:2px solid #fff;transform:rotate(45deg);box-shadow:0 0 4px ${col}99"></div>`;
+      const icon = L.divIcon({className:'',html:shape,iconSize:[12,12],iconAnchor:[6,6]});
+      const vel  = r.velocita_attuale ? `${Math.round(r.velocita_attuale)} km/h` : 'n/d';
+      mapMarkers.push(
+        L.marker([r.lat,r.lon],{icon}).addTo(map)
+          .bindPopup(`<b>${r.punto_nome}</b><br>${vel} · ${ETICHETTE[lvl]}`)
+      );
     });
+  }
 
-    const puntiIds = Object.keys(byPunto);
-    const datasets = puntiIds.map((id, i) => ({
-      label: byPunto[id].nome.replace('→', '›').replace('(nodo centrale)', '').trim(),
-      data:  byPunto[id].punti,
-      borderColor: PALETTE[i % PALETTE.length],
-      backgroundColor: PALETTE[i % PALETTE.length] + '22',
-      borderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      tension: 0.3,
-      fill: false,
-    }));
+  function populateSelect(byLoc) {
+    const sel = document.getElementById('loc-select');
+    while (sel.options.length>1) sel.remove(1);
+    POSIZIONI_ORDER.forEach(lid => { if(byLoc[lid]) sel.add(new Option(byLoc[lid].nome, lid)); });
+  }
 
+  function renderStorico(rows, locFilter) {
     const ctx = document.getElementById('history-chart').getContext('2d');
-    if (historyChart) historyChart.destroy();
+    let fiData=[], piData=[];
 
-    historyChart = new Chart(ctx, {
-      type: 'line',
-      data: { datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            labels: { color: '#aaa', font: { size: 11 }, boxWidth: 12, padding: 12 }
-          },
-          tooltip: {
-            backgroundColor: '#1a1d27',
-            borderColor: '#2a2d3a',
-            borderWidth: 1,
-            titleColor: '#7c9ef8',
-            bodyColor: '#ccc',
-            callbacks: {
-              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} km/h`
-            }
+    if (locFilter==='all') {
+      const byKey={};
+      rows.forEach(r => {
+        if (!r.velocita_attuale) return;
+        const d=dir(r.punto_id), key=r.timestamp+'|'+d;
+        if (!byKey[key]) byKey[key]={ts:new Date(r.timestamp),dir:d,sum:0,n:0};
+        byKey[key].sum+=r.velocita_attuale; byKey[key].n++;
+      });
+      Object.values(byKey).forEach(d => {
+        const pt={x:d.ts,y:Math.round(d.sum/d.n)};
+        if(d.dir==='fi') fiData.push(pt); else piData.push(pt);
+      });
+    } else {
+      rows.forEach(r => {
+        if (!r.velocita_attuale || locId(r.punto_id)!==locFilter) return;
+        const pt={x:new Date(r.timestamp),y:Math.round(r.velocita_attuale)};
+        if(dir(r.punto_id)==='fi') fiData.push(pt); else piData.push(pt);
+      });
+    }
+    fiData.sort((a,b)=>a.x-b.x);
+    piData.sort((a,b)=>a.x-b.x);
+
+    if (histChart) histChart.destroy();
+    histChart = new Chart(ctx, {
+      type:'line',
+      data:{ datasets:[
+        { label:'→ Firenze', data:fiData, borderColor:'#ff7043', backgroundColor:'#ff704322', borderWidth:2, pointRadius:3, pointHoverRadius:5, tension:0.3, fill:false },
+        { label:'→ Pistoia', data:piData, borderColor:'#42a5f5', backgroundColor:'#42a5f522', borderWidth:2, pointRadius:3, pointHoverRadius:5, tension:0.3, fill:false }
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{labels:{color:'#889',font:{size:11},boxWidth:14,padding:14}},
+          tooltip:{
+            backgroundColor:'#131728',borderColor:'#1e2240',borderWidth:1,
+            titleColor:'#7b9ef7',bodyColor:'#ccc',
+            callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} km/h`}
           }
         },
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              tooltipFormat: 'dd/MM HH:mm',
-              displayFormats: { hour: 'HH:mm', day: 'dd/MM' }
-            },
-            ticks: { color: '#555', maxTicksLimit: 8 },
-            grid:  { color: '#1e2030' }
-          },
-          y: {
-            title: { display: true, text: 'km/h', color: '#555', font: { size: 11 } },
-            ticks: { color: '#555' },
-            grid:  { color: '#1e2030' },
-            min: 0
-          }
+        scales:{
+          x:{type:'time',time:{tooltipFormat:'dd/MM HH:mm',displayFormats:{hour:'HH:mm',day:'dd/MM'}},
+             ticks:{color:'#445',maxTicksLimit:8},grid:{color:'#131728'}},
+          y:{title:{display:true,text:'km/h',color:'#445',font:{size:10}},
+             ticks:{color:'#445'},grid:{color:'#131728'},min:0}
         }
       }
     });
   }
 
-  function formatTimestamp(ts) {
-    if (!ts) return '';
-    const d = new Date(ts);
-    return `Aggiornato: ${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'})}`;
-  }
-
-  // ─── Aggiornamento principale ─────────────────────────────────────────────────
   async function aggiorna() {
+    document.getElementById('last-update').textContent='Caricamento…';
     try {
-      const data = await fetchUltimiDati();
-      if (!data || !data.rows.length) {
-        document.getElementById('cards').innerHTML =
-          '<div class="loading">Nessun dato ancora disponibile. Il cron inizierà presto.</div>';
+      const snap = await fetchSnapshot();
+      if (!snap?.rows?.length) {
+        document.getElementById('loc-tbody').innerHTML='<tr><td colspan="3" class="empty">Nessun dato ancora. Il cron inizierà presto.</td></tr>';
+        document.getElementById('last-update').textContent='Nessun dato';
         return;
       }
-      document.getElementById('last-update').textContent = formatTimestamp(data.timestamp);
-      renderCards(data.rows);
-      renderMarkers(data.rows);
-      renderChart(data.rows);
-    } catch (e) {
-      console.error(e);
-      document.getElementById('last-update').textContent = 'Errore caricamento dati';
-    }
+      const byLoc = groupByLoc(snap.rows);
+      renderKpi(byLoc);
+      renderTable(byLoc);
+      renderMarkers(snap.rows);
+      populateSelect(byLoc);
+      const d=new Date(snap.ts);
+      document.getElementById('last-update').textContent=
+        `Aggiornato: ${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}`;
+    } catch(e) { console.error(e); document.getElementById('last-update').textContent='Errore'; }
   }
 
-  async function aggiornaStorico(days) {
+  async function aggiornaStorico() {
     try {
-      const rows = await fetchStorico(days);
-      if (rows.length === 0) {
-        document.getElementById('chart-container').innerHTML =
-          '<div class="loading" style="padding:60px 0">Nessun dato storico ancora disponibile.</div>';
+      const rows = await fetchStorico(currentDays);
+      if (!rows.length) {
+        document.getElementById('chart-wrap').innerHTML='<div class="empty" style="padding:60px 0">Nessun dato storico ancora.</div>';
         return;
       }
-      renderStorico(rows);
-    } catch (e) {
-      console.error(e);
-    }
+      renderStorico(rows, document.getElementById('loc-select').value);
+    } catch(e) { console.error(e); }
   }
 
-  // ─── Bottoni range ────────────────────────────────────────────────────────────
   document.querySelectorAll('.btn-range').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      currentDays = parseInt(btn.dataset.days);
-      aggiornaStorico(currentDays);
+      currentDays=parseInt(btn.dataset.days);
+      aggiornaStorico();
     });
   });
+  document.getElementById('loc-select').addEventListener('change', aggiornaStorico);
+  document.getElementById('btn-refresh').addEventListener('click', () => { aggiorna(); aggiornaStorico(); });
 
-  // Carica tutto al primo accesso
   aggiorna();
-  aggiornaStorico(currentDays);
-
-  // Refresh snapshot ogni 5 minuti
+  aggiornaStorico();
   setInterval(aggiorna, 300000);
 </script>
 </body>

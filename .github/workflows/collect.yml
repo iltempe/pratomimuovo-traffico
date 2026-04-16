@@ -23,7 +23,7 @@ jobs:
               print("Run manuale → skip controllo orario")
           else:
               ora_it = datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).hour
-              orari  = [7, 10, 12, 16, 18, 19, 20, 23]
+              orari  = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 23]
               result = 'true' if ora_it in orari else 'false'
               print(f"Ora italiana: {ora_it}:00  →  should_run={result}")
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
