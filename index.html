@@ -17,7 +17,7 @@
       background:#131728; border-bottom:1px solid #1e2240;
       padding:10px 20px; display:flex; align-items:center;
       justify-content:space-between; flex-wrap:wrap; gap:8px;
-      position:sticky; top:0; z-index:9999;
+      position:sticky; top:52px; z-index:998;
     }
     .hdr-left { display:flex; align-items:center; gap:10px; }
     header h1 { font-size:15px; font-weight:700; color:#7b9ef7; white-space:nowrap; }
@@ -120,10 +120,42 @@
       font-size:10px; font-weight:600; background:#1e2240; color:#7b9ef7;
       margin-right:4px; margin-top:4px;
     }
-  </style>
+  
+  /* ── PMM NAV (PratoMiMuovo shared) ── */
+  .pmm-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: rgba(10,11,15,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid #252d3d;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem; height: 52px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .pmm-nav-brand { font-weight: 700; font-size: 1rem; color: #6366f1; text-decoration: none; letter-spacing: -0.5px; }
+  .pmm-nav-back  { color: #8892a4; text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; }
+  .pmm-nav-back:hover { color: #e2e8f0; }
+  .pmm-nav-spacer { height: 52px; }
+  .pmm-footer {
+    background: #111318; border-top: 1px solid #252d3d;
+    text-align: center; padding: 2rem;
+    color: #4a5568; font-size: 0.8rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin-top: 2rem;
+  }
+  .pmm-footer strong { color: #6366f1; }
+  .pmm-footer span   { color: #4a5568; margin-top: 0.25rem; display: block; }
+</style>
 </head>
 <body>
-
+<nav class="pmm-nav">
+  <a class="pmm-nav-brand" href="https://iltempe.github.io/pratomimuovo/">#PratoMiMuovo</a>
+  <a class="pmm-nav-back"  href="https://iltempe.github.io/pratomimuovo/">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Torna alla homepage
+  </a>
+</nav>
+<div class="pmm-nav-spacer"></div>
 <header>
   <div class="hdr-left">
     <h1>🚦 PratoMiMuovo</h1>
@@ -487,5 +519,10 @@
   document.getElementById('info-close').addEventListener('click', () => overlay.classList.remove('open'));
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
 </script>
+
+<footer class="pmm-footer">
+  <p><strong>#PratoMiMuovo</strong> — Mobilità intelligente per una città che funziona<br/>
+  <span>Progetto indipendente · Prato · 2026 · Matteo Tempestini</span></p>
+</footer>
 </body>
 </html>
