@@ -6,8 +6,6 @@
   <title>PratoMiMuovo – Viale L. da Vinci</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI',system-ui,sans-serif; background:#0d0f18; color:#dde1f0; min-height:100vh; }
@@ -71,23 +69,42 @@
     .l3 .speed-val { color:#ff5252; } .l3 .badge { background:#2e0000; color:#ff5252; }
     .l0 .speed-val { color:#445;   } .l0 .badge { background:#1a1a22; color:#556;   }
 
-    /* Grafico */
-    .history-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    #loc-select {
-      padding:4px 8px; border-radius:6px; font-size:11px;
-      background:#1a1d30; border:1px solid #2a2f50; color:#dde1f0; cursor:pointer;
-    }
-    .range-btns { display:flex; gap:5px; }
-    .btn-range {
-      padding:3px 10px; border-radius:5px; font-size:11px; cursor:pointer;
-      border:1px solid #2a2f50; background:#1a1d30; color:#889;
-    }
-    .btn-range.active { background:#7b9ef7; color:#0d0f18; border-color:#7b9ef7; }
-    #chart-wrap { padding:4px 16px 16px; height:230px; }
-
     /* Mappa */
     #map { height:420px; }
     .empty { text-align:center; padding:32px; color:#445; font-size:13px; }
+
+    /* Heatmap congestionamenti */
+    .heatmap-outer { overflow-x:auto; padding:8px 16px 16px; }
+    .heatmap-tbl { border-collapse:separate; border-spacing:2px; }
+    .hm-pos-name {
+      font-size:10px; color:#889; white-space:nowrap; padding-right:8px;
+      position:sticky; left:0; background:#0d0f18; z-index:1;
+    }
+    .hm-ts-head {
+      font-size:9px; color:#445; text-align:center; white-space:nowrap;
+      padding:0 1px 4px; font-weight:400; min-width:14px;
+    }
+    .hm-cell {
+      width:14px; height:14px; border-radius:3px; cursor:default;
+      transition:transform .1s;
+    }
+    .hm-cell:hover { transform:scale(1.5); z-index:2; position:relative; }
+    .hm-legend { display:flex; align-items:center; gap:14px; padding:0 16px 10px;
+                 font-size:10px; color:#667; flex-wrap:wrap; }
+    .hm-leg-cell { width:12px; height:12px; border-radius:2px; display:inline-block; margin-right:4px; }
+
+    /* Log eventi */
+    .cong-tbl { width:100%; border-collapse:collapse; font-size:12px; }
+    .cong-tbl thead th {
+      padding:6px 14px; background:#0d0f18; color:#7b9ef7; font-size:11px;
+      font-weight:600; text-align:left; border-bottom:1px solid #1e2240;
+    }
+    .cong-tbl tbody tr { border-bottom:1px solid #131728; }
+    .cong-tbl tbody tr:hover td { background:#131728; }
+    .cong-tbl td { padding:6px 14px; vertical-align:middle; }
+    .cong-when { color:#667; white-space:nowrap; }
+    .cong-pos  { color:#c0c8e8; font-weight:500; }
+    .v1 { color:#00c853; } .v2 { color:#ffab00; } .v3 { color:#ff5252; } .v0 { color:#445; }
 
     /* Info panel */
     #btn-info {
@@ -145,6 +162,32 @@
   }
   .pmm-footer strong { color: #6366f1; }
   .pmm-footer span   { color: #4a5568; margin-top: 0.25rem; display: block; }
+
+    /* ── RESPONSIVE MOBILE ── */
+    @media (max-width: 600px) {
+      .pmm-nav { padding: 0 1rem; }
+      header { padding: 8px 12px; flex-direction: column; align-items: flex-start; gap: 6px; }
+      header h1 { font-size: 13px; }
+      .kpi-bar { grid-template-columns: 1fr; }
+      .kpi { border-right: none; border-bottom: 1px solid #1e2240; padding: 10px 14px; }
+      .kpi:last-child { border-bottom: none; }
+      .kpi-val { font-size: 26px; }
+      .loc-tbl thead th, .loc-tbl td { padding: 6px 8px; font-size: 11px; }
+      .speed-val { font-size: 14px; min-width: 28px; }
+      .dir-cell { gap: 4px; }
+      #map { height: 280px; }
+      .heatmap-outer { padding: 4px 8px 10px; }
+      .hm-cell { width: 11px; height: 11px; }
+      .sec-hdr { flex-direction: column; align-items: flex-start; }
+      .sec-hdr h2 { font-size: 12px; }
+      .legend { gap: 6px; font-size: 10px; }
+      .cong-tbl thead th, .cong-tbl td { padding: 5px 8px; font-size: 11px; }
+      #info-box { padding: 20px 16px; }
+    }
+    @media (max-width: 400px) {
+      .hm-cell { width: 9px; height: 9px; }
+      .kpi-val { font-size: 22px; }
+    }
 </style>
 </head>
 <body>
@@ -247,22 +290,25 @@
   </div>
 </div>
 
-<!-- Storico -->
+<!-- Congestionamenti ultimo giorno -->
 <div class="section">
   <div class="sec-hdr">
-    <h2>📈 Storico velocità (km/h)</h2>
-    <div class="history-controls">
-      <select id="loc-select">
-        <option value="all">Tutte le posizioni (media)</option>
-      </select>
-      <div class="range-btns">
-        <button class="btn-range active" data-days="2">2 gg</button>
-        <button class="btn-range" data-days="7">7 gg</button>
-        <button class="btn-range" data-days="30">30 gg</button>
-      </div>
-    </div>
+    <h2>🔴 Rallentamenti e congestionamenti — ultimo giorno</h2>
+    <span id="cong-date" style="font-size:11px;color:#556"></span>
   </div>
-  <div id="chart-wrap"><canvas id="history-chart"></canvas></div>
+  <!-- Heatmap -->
+  <div class="hm-legend">
+    <span><span class="hm-leg-cell" style="background:#1e2240"></span>Nessun dato</span>
+    <span><span class="hm-leg-cell" style="background:#003316"></span>Scorrevole</span>
+    <span><span class="hm-leg-cell" style="background:#2e1e00"></span>Rallentato</span>
+    <span><span class="hm-leg-cell" style="background:#4a0000"></span>Congestionato</span>
+  </div>
+  <div class="heatmap-outer" id="heatmap"><div class="empty">Caricamento…</div></div>
+  <!-- Log eventi -->
+  <div style="padding:10px 16px 4px;font-size:11px;color:#556;text-transform:uppercase;letter-spacing:.06em">
+    Eventi rilevati (livello ≥ Rallentato)
+  </div>
+  <div id="cong-log"><div class="empty">Caricamento…</div></div>
 </div>
 
 <!-- Mappa -->
@@ -298,8 +344,6 @@
   ).addTo(map);
 
   let mapMarkers = [];
-  let histChart  = null;
-  let currentDays = 2;
 
   const hdrs = () => ({ apikey:SUPABASE_ANON, Authorization:`Bearer ${SUPABASE_ANON}` });
   const locId = pid => pid.replace(/_fi$|_pi$/, '');
@@ -329,11 +373,20 @@
     return { ts: last.timestamp, rows };
   }
 
-  async function fetchStorico(days) {
-    const since = new Date(Date.now() - days*86400000).toISOString();
+  const LOC_NAMES = {
+    'vldv_w3':'W3 – Casale', 'vldv_w2':'W2', 'vldv_w1':'W1',
+    'vldv_ov_lon':'Ovest Lontano', 'vldv_ov_vic':'Ovest Vicino',
+    'vldv_incrocio':'Incrocio P.Nenni', 'vldv_es_vic':'Est Vicino',
+    'vldv_es_lon':'Est Lontano', 'vldv_e1':'E1', 'vldv_e2':'E2',
+    'vldv_e3':'E3 – Reggiana', 'vldv_e4':'E4', 'vldv_e5':'E5',
+    'vldv_e6':'E6', 'vldv_e7':'E7', 'vldv_e8':'E8'
+  };
+
+  async function fetchUltimoGiorno() {
+    const since = new Date(Date.now() - 86400000).toISOString();
     return fetch(
-      `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp,punto_id,velocita_attuale` +
-      `&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.asc&limit=10000`,
+      `${SUPABASE_URL}/rest/v1/rilevazioni?select=timestamp,punto_id,velocita_attuale,livello_conf` +
+      `&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.asc&limit=2000`,
       { headers:hdrs() }
     ).then(r => r.json());
   }
@@ -407,64 +460,112 @@
     });
   }
 
-  function populateSelect(byLoc) {
-    const sel = document.getElementById('loc-select');
-    while (sel.options.length>1) sel.remove(1);
-    POSIZIONI_ORDER.forEach(lid => { if(byLoc[lid]) sel.add(new Option(byLoc[lid].nome, lid)); });
+  // ── Heatmap ────────────────────────────────────────────────────────────────
+  function renderHeatmap(rows) {
+    const HM_BG = {0:'#1e2240', 1:'#003316', 2:'#2e1e00', 3:'#4a0000'};
+    const HM_FG = {0:'#445',    1:'#00c853', 2:'#ffab00', 3:'#ff5252'};
+
+    // unique timestamps sorted
+    const tsSet = [...new Set(rows.map(r => r.timestamp))].sort();
+    // limit: show last 56 slots (≈4 gg con 14 rilevazioni/gg)
+    const tsCols = tsSet.slice(-56);
+
+    // grid[locId][ts] = {worstLvl, fi, pi}
+    const grid = {};
+    rows.forEach(r => {
+      if (!tsCols.includes(r.timestamp)) return;
+      const lid = locId(r.punto_id), d = dir(r.punto_id), lvl = r.livello_conf || 0;
+      if (!grid[lid]) grid[lid] = {};
+      if (!grid[lid][r.timestamp]) grid[lid][r.timestamp] = {worstLvl:0, fi:null, pi:null};
+      if (lvl > grid[lid][r.timestamp].worstLvl) grid[lid][r.timestamp].worstLvl = lvl;
+      grid[lid][r.timestamp][d] = r;
+    });
+
+    // header: show label every ~4 columns
+    let hdr = '<tr><td class="hm-pos-name" style="padding-bottom:4px"></td>';
+    tsCols.forEach((ts, i) => {
+      const d = new Date(ts);
+      const show = i === 0 || i % 4 === 0;
+      const lbl = show
+        ? `<span style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:8px;color:#445">${
+            d.toLocaleString('it-IT',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>`
+        : '';
+      hdr += `<th class="hm-ts-head">${lbl}</th>`;
+    });
+    hdr += '</tr>';
+
+    let rows_html = '';
+    POSIZIONI_ORDER.forEach(lid => {
+      rows_html += `<tr><td class="hm-pos-name">${LOC_NAMES[lid]||lid}</td>`;
+      tsCols.forEach(ts => {
+        const cell = grid[lid]?.[ts];
+        const lvl  = cell ? cell.worstLvl : 0;
+        const hasData = !!cell;
+        const d = new Date(ts);
+        const title = hasData
+          ? `${d.toLocaleString('it-IT')} — ${LOC_NAMES[lid]||lid}: ${ETICHETTE[lvl]}`
+          : 'Nessun dato';
+        const dot = lvl >= 2
+          ? `<span style="font-size:7px;line-height:14px;display:block;text-align:center;color:${HM_FG[lvl]}">●</span>`
+          : '';
+        rows_html += `<td class="hm-cell" style="background:${HM_BG[lvl]}" title="${title}">${dot}</td>`;
+      });
+      rows_html += '</tr>';
+    });
+
+    document.getElementById('heatmap').innerHTML =
+      `<table class="heatmap-tbl"><thead>${hdr}</thead><tbody>${rows_html}</tbody></table>`;
   }
 
-  function renderStorico(rows, locFilter) {
-    const ctx = document.getElementById('history-chart').getContext('2d');
-    let fiData=[], piData=[];
-
-    if (locFilter==='all') {
-      const byKey={};
-      rows.forEach(r => {
-        if (!r.velocita_attuale) return;
-        const d=dir(r.punto_id), key=r.timestamp+'|'+d;
-        if (!byKey[key]) byKey[key]={ts:new Date(r.timestamp),dir:d,sum:0,n:0};
-        byKey[key].sum+=r.velocita_attuale; byKey[key].n++;
-      });
-      Object.values(byKey).forEach(d => {
-        const pt={x:d.ts,y:Math.round(d.sum/d.n)};
-        if(d.dir==='fi') fiData.push(pt); else piData.push(pt);
-      });
-    } else {
-      rows.forEach(r => {
-        if (!r.velocita_attuale || locId(r.punto_id)!==locFilter) return;
-        const pt={x:new Date(r.timestamp),y:Math.round(r.velocita_attuale)};
-        if(dir(r.punto_id)==='fi') fiData.push(pt); else piData.push(pt);
-      });
-    }
-    fiData.sort((a,b)=>a.x-b.x);
-    piData.sort((a,b)=>a.x-b.x);
-
-    if (histChart) histChart.destroy();
-    histChart = new Chart(ctx, {
-      type:'line',
-      data:{ datasets:[
-        { label:'→ Firenze', data:fiData, borderColor:'#ff7043', backgroundColor:'#ff704322', borderWidth:2, pointRadius:3, pointHoverRadius:5, tension:0.3, fill:false },
-        { label:'→ Pistoia', data:piData, borderColor:'#42a5f5', backgroundColor:'#42a5f522', borderWidth:2, pointRadius:3, pointHoverRadius:5, tension:0.3, fill:false }
-      ]},
-      options:{
-        responsive:true, maintainAspectRatio:false,
-        interaction:{mode:'index',intersect:false},
-        plugins:{
-          legend:{labels:{color:'#889',font:{size:11},boxWidth:14,padding:14}},
-          tooltip:{
-            backgroundColor:'#131728',borderColor:'#1e2240',borderWidth:1,
-            titleColor:'#7b9ef7',bodyColor:'#ccc',
-            callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} km/h`}
-          }
-        },
-        scales:{
-          x:{type:'time',time:{tooltipFormat:'dd/MM HH:mm',displayFormats:{hour:'HH:mm',day:'dd/MM'}},
-             ticks:{color:'#445',maxTicksLimit:8},grid:{color:'#131728'}},
-          y:{title:{display:true,text:'km/h',color:'#445',font:{size:10}},
-             ticks:{color:'#445'},grid:{color:'#131728'},min:0}
-        }
-      }
+  // ── Log congestionamenti ────────────────────────────────────────────────────
+  function renderCongLog(rows) {
+    const byKey = {};
+    rows.forEach(r => {
+      const lid = locId(r.punto_id), d = dir(r.punto_id), lvl = r.livello_conf || 0;
+      const key = r.timestamp + '|' + lid;
+      if (!byKey[key]) byKey[key] = {ts:r.timestamp, lid, worstLvl:0, fi:null, pi:null};
+      if (lvl > byKey[key].worstLvl) byKey[key].worstLvl = lvl;
+      byKey[key][d] = r;
     });
+
+    const events = Object.values(byKey)
+      .filter(e => e.worstLvl >= 2)
+      .sort((a,b) => b.ts.localeCompare(a.ts))
+      .slice(0, 120);
+
+    if (!events.length) {
+      document.getElementById('cong-log').innerHTML =
+        '<div class="empty">Nessun rallentamento rilevato nel periodo selezionato.</div>';
+      return;
+    }
+
+    const dirBadge = (r) => {
+      if (!r || !r.velocita_attuale) return '<span style="color:#445">—</span>';
+      const lvl = r.livello_conf || 0;
+      const col = {0:'#445',1:'#00c853',2:'#ffab00',3:'#ff5252'}[lvl];
+      return `<span style="color:${col};font-weight:700">${Math.round(r.velocita_attuale)} km/h</span>`+
+             `<span class="badge" style="background:${{0:'#1a1a22',1:'#002b12',2:'#2e1e00',3:'#2e0000'}[lvl]};color:${col};margin-left:4px">${ETICHETTE[lvl]}</span>`;
+    };
+
+    let html = `<div style="overflow-x:auto"><table class="cong-tbl">
+      <thead><tr>
+        <th>Quando</th><th>Posizione</th><th>→ Firenze</th><th>→ Pistoia</th>
+      </tr></thead><tbody>`;
+
+    events.forEach(e => {
+      const d = new Date(e.ts);
+      const when = d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})+
+                   ' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+      html += `<tr>
+        <td class="cong-when">${when}</td>
+        <td class="cong-pos">${LOC_NAMES[e.lid]||e.lid}</td>
+        <td>${dirBadge(e.fi)}</td>
+        <td>${dirBadge(e.pi)}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('cong-log').innerHTML = html;
   }
 
   async function aggiorna() {
@@ -480,37 +581,34 @@
       renderKpi(byLoc);
       renderTable(byLoc);
       renderMarkers(snap.rows);
-      populateSelect(byLoc);
       const d=new Date(snap.ts);
       document.getElementById('last-update').textContent=
         `Aggiornato: ${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}`;
     } catch(e) { console.error(e); document.getElementById('last-update').textContent='Errore'; }
   }
 
-  async function aggiornaStorico() {
+  async function aggiornaUltimoGiorno() {
     try {
-      const rows = await fetchStorico(currentDays);
+      const rows = await fetchUltimoGiorno();
       if (!rows.length) {
-        document.getElementById('chart-wrap').innerHTML='<div class="empty" style="padding:60px 0">Nessun dato storico ancora.</div>';
+        document.getElementById('heatmap').innerHTML='<div class="empty">Nessun dato nelle ultime 24 ore.</div>';
+        document.getElementById('cong-log').innerHTML='';
         return;
       }
-      renderStorico(rows, document.getElementById('loc-select').value);
+      // mostra l'intervallo coperto
+      const tsMin = new Date(rows[0].timestamp);
+      const tsMax = new Date(rows[rows.length-1].timestamp);
+      const fmt = d => d.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      document.getElementById('cong-date').textContent = `${fmt(tsMin)} – ${fmt(tsMax)}`;
+      renderHeatmap(rows);
+      renderCongLog(rows);
     } catch(e) { console.error(e); }
   }
 
-  document.querySelectorAll('.btn-range').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      currentDays=parseInt(btn.dataset.days);
-      aggiornaStorico();
-    });
-  });
-  document.getElementById('loc-select').addEventListener('change', aggiornaStorico);
-  document.getElementById('btn-refresh').addEventListener('click', () => { aggiorna(); aggiornaStorico(); });
+  document.getElementById('btn-refresh').addEventListener('click', () => { aggiorna(); aggiornaUltimoGiorno(); });
 
   aggiorna();
-  aggiornaStorico();
+  aggiornaUltimoGiorno();
   setInterval(aggiorna, 300000);
 
   // Info panel
