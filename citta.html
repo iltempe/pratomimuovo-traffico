@@ -373,9 +373,20 @@
       const libre  = fd.freeFlowSpeed;
       const ratio  = libre > 0 ? vel / libre : null;
       const lvl    = ratio == null ? 0 : ratio >= 0.8 ? 1 : ratio >= 0.5 ? 2 : 3;
+
+      // TomTom returns the actual snapped road coordinates — use the midpoint
+      // of the segment so the marker sits precisely on the street.
+      const coords = fd.coordinates?.coordinate ?? [];
+      let snapLat = punto.lat, snapLon = punto.lon;
+      if (coords.length > 0) {
+        const mid = coords[Math.floor(coords.length / 2)];
+        snapLat = mid.latitude;
+        snapLon = mid.longitude;
+      }
+
       return {
         punto_id: punto.id, punto_nome: punto.nome,
-        lat: punto.lat, lon: punto.lon, zona: punto.zona,
+        lat: snapLat, lon: snapLon, zona: punto.zona,
         velocita_attuale: vel, velocita_libera: libre,
         rapporto_flusso: ratio, livello_conf: lvl,
         confidence: fd.confidence ?? null, errore: null
@@ -430,6 +441,8 @@
     rows.forEach(r => {
       const m = mapMarkers[r.punto_id];
       if (!m) return;
+      // Snap marker to the actual road position returned by TomTom
+      m.setLatLng([r.lat, r.lon]);
       const col = COLORI[r.livello_conf ?? 0];
       m.setStyle({ fillColor:col, color: r.livello_conf === 3 ? '#ff0000' : '#222' });
       const vel  = r.velocita_attuale ? `${Math.round(r.velocita_attuale)} km/h` : 'N/D';
