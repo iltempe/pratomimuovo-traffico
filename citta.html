@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PratoMiMuovo – Traffico Città</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:#0d0f18; color:#dde1f0; min-height:100vh; }
+
+    /* ── TOP NAV ── */
+    .top-nav {
+      background:#131728; border-bottom:1px solid #1e2240;
+      padding:8px 20px; display:flex; align-items:center; gap:16px;
+      position:sticky; top:0; z-index:1000;
+    }
+    .top-nav a { font-size:12px; color:#667; text-decoration:none; }
+    .top-nav a:hover { color:#7b9ef7; }
+    .top-nav .sep { color:#2a2f50; }
+
+    /* ── HEADER ── */
+    header {
+      background:#131728; border-bottom:1px solid #1e2240;
+      padding:10px 20px; display:flex; align-items:center;
+      justify-content:space-between; flex-wrap:wrap; gap:8px;
+    }
+    .hdr-left { display:flex; align-items:center; gap:10px; }
+    header h1 { font-size:15px; font-weight:700; color:#7b9ef7; white-space:nowrap; }
+    .hdr-sub { font-size:11px; color:#556; }
+    #last-update { font-size:11px; color:#667; }
+    .hdr-right { display:flex; align-items:center; gap:8px; }
+    #btn-refresh {
+      padding:4px 12px; border-radius:6px; font-size:11px; cursor:pointer;
+      background:#1e2240; border:1px solid #2a2f50; color:#aaa;
+      transition: all .15s;
+    }
+    #btn-refresh:hover { border-color:#7b9ef7; color:#7b9ef7; }
+    .status-dot {
+      width:8px; height:8px; border-radius:50%; background:#445;
+      transition: background .3s;
+    }
+    .status-dot.live { background:#00c853; box-shadow:0 0 6px #00c85388; }
+    .status-dot.loading { background:#ffab00; }
+    .status-dot.error { background:#ff5252; }
+
+    /* ── KPI BAR ── */
+    .kpi-bar {
+      display:grid; grid-template-columns:repeat(4,1fr);
+      border-bottom:1px solid #1e2240;
+    }
+    @media(max-width:600px){ .kpi-bar { grid-template-columns:repeat(2,1fr); } }
+    .kpi { padding:12px 16px; text-align:center; border-right:1px solid #1e2240; background:#10121c; }
+    .kpi:last-child { border-right:none; }
+    .kpi-label { font-size:10px; color:#556; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+    .kpi-val { font-size:20px; font-weight:700; color:#dde1f0; }
+    .kpi-sub { font-size:10px; color:#556; margin-top:2px; }
+
+    /* ── SECTIONS ── */
+    .section { border-bottom:1px solid #1e2240; }
+    .sec-hdr {
+      padding:10px 18px; display:flex; align-items:center;
+      justify-content:space-between; flex-wrap:wrap; gap:8px; background:#10121c;
+      cursor:pointer; user-select:none;
+    }
+    .sec-hdr h2 { font-size:13px; color:#7b9ef7; font-weight:600; }
+    .sec-body { }
+
+    /* ── ZONA FILTER ── */
+    .zona-filter {
+      padding:8px 18px; display:flex; gap:8px; flex-wrap:wrap;
+      background:#0d0f18; border-bottom:1px solid #1e2240;
+    }
+    .zbtn {
+      padding:3px 10px; border-radius:12px; font-size:11px; cursor:pointer;
+      border:1px solid #2a2f50; background:#131728; color:#889;
+      transition: all .15s;
+    }
+    .zbtn.active { border-color:#7b9ef7; color:#7b9ef7; background:#1a1e38; }
+
+    /* ── MAP ── */
+    #map { height:420px; }
+
+    /* ── TABLE ── */
+    .tbl-wrap { overflow-x:auto; }
+    table.loc-tbl { width:100%; border-collapse:collapse; }
+    .loc-tbl thead th {
+      padding:7px 14px; background:#0d0f18; font-size:11px; color:#7b9ef7;
+      font-weight:600; text-align:left; border-bottom:1px solid #1e2240; white-space:nowrap;
+      position:sticky; top:0;
+    }
+    .loc-tbl thead th:not(:first-child):not(:nth-child(2)) { text-align:center; }
+    .loc-tbl tbody tr { border-bottom:1px solid #131728; transition: background .1s; }
+    .loc-tbl tbody tr:hover td { background:#131728; }
+    .loc-tbl td { padding:7px 14px; font-size:12px; vertical-align:middle; }
+    .zona-badge {
+      display:inline-block; padding:1px 6px; border-radius:8px;
+      font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    }
+    .speed-cell { display:flex; align-items:center; justify-content:center; gap:6px; }
+    .speed-val { font-size:16px; font-weight:700; min-width:32px; text-align:right; }
+    .badge { display:inline-block; padding:2px 7px; border-radius:12px; font-size:9px; font-weight:700; white-space:nowrap; }
+    .ratio-bar-wrap { width:60px; height:6px; background:#1e2240; border-radius:3px; overflow:hidden; display:inline-block; }
+    .ratio-bar { height:100%; border-radius:3px; transition: width .4s; }
+
+    .l1 .speed-val,.l1-t { color:#00c853; } .l1 .badge { background:#002b12; color:#00c853; }
+    .l2 .speed-val,.l2-t { color:#ffab00; } .l2 .badge { background:#2e1e00; color:#ffab00; }
+    .l3 .speed-val,.l3-t { color:#ff5252; } .l3 .badge { background:#2e0000; color:#ff5252; }
+    .l0 .speed-val,.l0-t { color:#445;   } .l0 .badge { background:#1a1a22; color:#556;   }
+
+    /* ── CHART ── */
+    .chart-wrap { padding:16px; }
+    .chart-box { position:relative; height:220px; }
+
+    /* ── LEGEND ── */
+    .legend { display:flex; align-items:center; gap:12px; font-size:11px; color:#889; flex-wrap:wrap; }
+    .leg-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; }
+
+    /* ── LAST EVENTS ── */
+    .events-list { padding:0 18px 12px; }
+    .ev-item {
+      display:flex; align-items:center; gap:10px;
+      padding:6px 0; border-bottom:1px solid #131728; font-size:12px;
+    }
+    .ev-item:last-child { border-bottom:none; }
+    .ev-time { color:#556; white-space:nowrap; min-width:48px; }
+    .ev-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .ev-text { color:#aaa; }
+    .ev-text strong { color:#dde1f0; }
+
+    .empty { text-align:center; padding:28px; color:#445; font-size:13px; }
+    @media(max-width:600px){
+      .kpi-val { font-size:16px; }
+      #map { height:300px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="top-nav">
+  <a href="https://iltempe.github.io/pratomimuovo/">🏠 PratoMiMuovo</a>
+  <span class="sep">|</span>
+  <a href="index.html">Snodo Soccorso</a>
+  <span class="sep">|</span>
+  <a href="citta.html" style="color:#7b9ef7;font-weight:600;">Traffico Città</a>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-left">
+    <div class="status-dot" id="statusDot"></div>
+    <div>
+      <h1>🗺️ PratoMiMuovo — Traffico tutta la città</h1>
+      <div class="hdr-sub">40 punti di monitoraggio · TomTom Flow API · archivio Supabase</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span id="last-update">—</span>
+    <button id="btn-refresh" onclick="refreshAll()">↺ Aggiorna</button>
+  </div>
+</header>
+
+<!-- KPI BAR -->
+<div class="kpi-bar">
+  <div class="kpi">
+    <div class="kpi-label">Velocità media città</div>
+    <div class="kpi-val" id="kpi-avg">—</div>
+    <div class="kpi-sub">km/h</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Punti congestionati</div>
+    <div class="kpi-val" id="kpi-cong" style="color:#ff5252">—</div>
+    <div class="kpi-sub">su <span id="kpi-tot">40</span> monitorati</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Zona più critica</div>
+    <div class="kpi-val" style="font-size:13px;line-height:1.3" id="kpi-zona">—</div>
+    <div class="kpi-sub" id="kpi-zona-sub"></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Punti scorrevoli</div>
+    <div class="kpi-val" id="kpi-free" style="color:#00c853">—</div>
+    <div class="kpi-sub">su <span id="kpi-tot2">40</span> monitorati</div>
+  </div>
+</div>
+
+<!-- MAPPA -->
+<div class="section">
+  <div class="sec-hdr" onclick="toggleSec('map-body')">
+    <h2>🗺 Mappa in tempo reale</h2>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#00c853"></span>Scorrevole</span>
+      <span><span class="leg-dot" style="background:#ffab00"></span>Rallentato</span>
+      <span><span class="leg-dot" style="background:#ff5252"></span>Congestionato</span>
+      <span><span class="leg-dot" style="background:#445"></span>N/D</span>
+    </div>
+  </div>
+  <div id="map-body">
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- TABELLA -->
+<div class="section">
+  <div class="sec-hdr" onclick="toggleSec('tbl-body')">
+    <h2>📋 Stato punti di monitoraggio</h2>
+    <div class="zona-filter" id="zona-filter" onclick="event.stopPropagation()">
+      <button class="zbtn active" data-zona="tutti" onclick="filterZona('tutti')">Tutti</button>
+      <button class="zbtn" data-zona="tangenziale" onclick="filterZona('tangenziale')">Tangenziale</button>
+      <button class="zbtn" data-zona="centro" onclick="filterZona('centro')">Centro</button>
+      <button class="zbtn" data-zona="nord" onclick="filterZona('nord')">Nord</button>
+      <button class="zbtn" data-zona="sud" onclick="filterZona('sud')">Sud</button>
+      <button class="zbtn" data-zona="est" onclick="filterZona('est')">Est</button>
+      <button class="zbtn" data-zona="ovest" onclick="filterZona('ovest')">Ovest</button>
+    </div>
+  </div>
+  <div id="tbl-body">
+    <div class="tbl-wrap">
+      <table class="loc-tbl">
+        <thead>
+          <tr>
+            <th>Punto</th>
+            <th>Zona</th>
+            <th>Velocità attuale</th>
+            <th>Vel. libera</th>
+            <th>Flusso</th>
+            <th>Stato</th>
+          </tr>
+        </thead>
+        <tbody id="loc-tbody"><tr><td colspan="6" class="empty">Caricamento…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- GRAFICO STORICO -->
+<div class="section">
+  <div class="sec-hdr" onclick="toggleSec('chart-body')">
+    <h2>📈 Andamento velocità media – ultime 24 ore</h2>
+  </div>
+  <div id="chart-body">
+    <div class="chart-wrap">
+      <div class="chart-box"><canvas id="chartCitta"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- EVENTI RECENTI -->
+<div class="section">
+  <div class="sec-hdr" onclick="toggleSec('events-body')">
+    <h2>⚠️ Congestioni rilevate – ultime 6 ore</h2>
+  </div>
+  <div id="events-body">
+    <div class="events-list" id="events-list">
+      <div class="empty">Caricamento…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────────────────────
+  const SUPABASE_URL  = 'https://pfzfegfaagzeupopqaqj.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmemZlZ2ZhYWd6ZXVwb3BxYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTAwMDcsImV4cCI6MjA5MTc2NjAwN30.E7Mc3T9pOWgRawHvAzi7Bzc3cpJC7FHwQ-OFnMc95E8';
+  const TOMTOM_KEY    = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
+  const TABLE         = 'rilevazioni_citta';
+  const REFRESH_MS    = 5 * 60 * 1000; // 5 minuti
+
+  // ── PUNTI DI MONITORAGGIO (40 punti su tutta Prato) ─────────────────────
+  const PUNTI = [
+    // TANGENZIALE / SP8
+    { id:'tang_w1',  nome:'Tang. Ovest – Narnali',         zona:'tangenziale', lat:43.8918, lon:11.0452 },
+    { id:'tang_w2',  nome:'Tang. Ovest – Galceti',         zona:'tangenziale', lat:43.8873, lon:11.0571 },
+    { id:'tang_c1',  nome:'Tang. Centro – Macrolotto',     zona:'tangenziale', lat:43.8782, lon:11.0725 },
+    { id:'tang_c2',  nome:'Tang. Centro – San Paolo',      zona:'tangenziale', lat:43.8755, lon:11.0836 },
+    { id:'tang_e1',  nome:'Tang. Est – Mezzana',           zona:'tangenziale', lat:43.8762, lon:11.0943 },
+    { id:'tang_e2',  nome:'Tang. Est – Soccorso',          zona:'tangenziale', lat:43.8765, lon:11.1078 },
+    { id:'tang_e3',  nome:'Tang. Est – Iolo',              zona:'tangenziale', lat:43.8760, lon:11.1210 },
+
+    // DECLASSATA (Viale L. da Vinci / Via Pistoiese Sud)
+    { id:'decl_w1',  nome:'Declassata – Ovest',            zona:'sud',         lat:43.8675, lon:11.0612 },
+    { id:'decl_c1',  nome:'Declassata – San Giorgio',      zona:'sud',         lat:43.8668, lon:11.0790 },
+    { id:'decl_e1',  nome:'Declassata – Soccorso',         zona:'sud',         lat:43.8672, lon:11.0980 },
+    { id:'decl_e2',  nome:'Declassata – Maliseti',         zona:'sud',         lat:43.8655, lon:11.1140 },
+
+    // CENTRO
+    { id:'ctr_rm',   nome:'Via Roma – Piazza Duomo',       zona:'centro',      lat:43.8797, lon:11.0972 },
+    { id:'ctr_maz',  nome:'Corso Mazzini',                 zona:'centro',      lat:43.8793, lon:11.1015 },
+    { id:'ctr_val',  nome:'Via Valentini',                 zona:'centro',      lat:43.8824, lon:11.0882 },
+    { id:'ctr_fer',  nome:'Via Ferrucci',                  zona:'centro',      lat:43.8810, lon:11.1052 },
+    { id:'ctr_pom',  nome:'Via Pomeria',                   zona:'centro',      lat:43.8760, lon:11.0960 },
+    { id:'ctr_ser',  nome:'Via del Seminario',             zona:'centro',      lat:43.8841, lon:11.0934 },
+
+    // NORD
+    { id:'nord_pist1', nome:'Via Pistoiese – Coiano',      zona:'nord',        lat:43.9005, lon:11.0655 },
+    { id:'nord_pist2', nome:'Via Pistoiese – Tavola',      zona:'nord',        lat:43.9125, lon:11.0592 },
+    { id:'nord_galc',  nome:'Via Galcianese – Nord',       zona:'nord',        lat:43.9050, lon:11.0832 },
+    { id:'nord_canig', nome:'Via Canigiani',               zona:'nord',        lat:43.8958, lon:11.0772 },
+    { id:'nord_acciai',nome:'Via Acciai',                  zona:'nord',        lat:43.8902, lon:11.0900 },
+
+    // SUD
+    { id:'sud_montem', nome:'Via Montemurlo',              zona:'sud',         lat:43.8610, lon:11.0700 },
+    { id:'sud_sp8',    nome:'SP8 Sud – Poggio a Caiano',   zona:'sud',         lat:43.8510, lon:11.0790 },
+    { id:'sud_prov',   nome:'Via Provinciale Pratese',     zona:'sud',         lat:43.8580, lon:11.0950 },
+    { id:'sud_emp',    nome:'Via per Empoli',              zona:'sud',         lat:43.8490, lon:11.1050 },
+
+    // EST
+    { id:'est_iolo',   nome:'Via di Iolo',                 zona:'est',         lat:43.8698, lon:11.1255 },
+    { id:'est_campi',  nome:'Via per Campi Bisenzio',      zona:'est',         lat:43.8635, lon:11.1350 },
+    { id:'est_serr',   nome:'Via Serragli',                zona:'est',         lat:43.8820, lon:11.1180 },
+    { id:'est_firvi',  nome:'Viale Firenze – Est',         zona:'est',         lat:43.8850, lon:11.1090 },
+    { id:'est_a11',    nome:'Raccordo A11 – casello',      zona:'est',         lat:43.8905, lon:11.1320 },
+
+    // OVEST
+    { id:'ovest_carr', nome:'Via Carradori',               zona:'ovest',       lat:43.8840, lon:11.0432 },
+    { id:'ovest_montu',nome:'Via Montù',                   zona:'ovest',       lat:43.8760, lon:11.0352 },
+    { id:'ovest_narn', nome:'Via Narnali',                 zona:'ovest',       lat:43.8965, lon:11.0510 },
+    { id:'ovest_galc2',nome:'Via Galcianese – Ovest',      zona:'ovest',       lat:43.8830, lon:11.0495 },
+    { id:'ovest_zarini',nome:'Via Zarini',                 zona:'ovest',       lat:43.8700, lon:11.0490 },
+
+    // VIALI / CIRCONVALLAZIONE
+    { id:'viale_mont', nome:'Viale Montegrappa',           zona:'centro',      lat:43.8862, lon:11.0975 },
+    { id:'viale_rep',  nome:'Viale della Repubblica',      zona:'centro',      lat:43.8830, lon:11.1010 },
+    { id:'viale_pie',  nome:'Viale Piave',                 zona:'centro',      lat:43.8775, lon:11.1030 },
+    { id:'viale_tosc', nome:'Viale della Toscana',         zona:'sud',         lat:43.8720, lon:11.0875 },
+  ];
+
+  // ── COLORI / ETICHETTE ───────────────────────────────────────────────────
+  const ETICH  = { 0:'N/D', 1:'Scorrevole', 2:'Rallentato', 3:'Congestionato' };
+  const COLORI = { 0:'#445', 1:'#00c853', 2:'#ffab00', 3:'#ff5252' };
+  const ZONA_COLORS = {
+    tangenziale:'#7b9ef7', centro:'#a78bfa', nord:'#34d399',
+    sud:'#fb923c', est:'#38bdf8', ovest:'#f472b6'
+  };
+
+  // ── STATO ────────────────────────────────────────────────────────────────
+  let liveData    = {};   // punto_id → row
+  let mapMarkers  = {};
+  let chartInst   = null;
+  let activeZona  = 'tutti';
+
+  // ── LEAFLET MAP ──────────────────────────────────────────────────────────
+  const map = L.map('map').setView([43.880, 11.085], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap', maxZoom:19
+  }).addTo(map);
+  L.tileLayer(
+    `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_KEY}&tileSize=256`,
+    { opacity:0.65, maxZoom:19 }
+  ).addTo(map);
+
+  // Aggiungi marker iniziali (grigi)
+  PUNTI.forEach(p => {
+    const m = L.circleMarker([p.lat, p.lon], {
+      radius:7, fillColor:'#445', color:'#222', weight:1.5, fillOpacity:0.9
+    }).addTo(map);
+    m.bindPopup(`<b>${p.nome}</b><br>Zona: ${p.zona}<br><span id="popup-${p.id}">Caricamento…</span>`);
+    mapMarkers[p.id] = m;
+  });
+
+  // ── TOMTOM FLOW FETCH ────────────────────────────────────────────────────
+  async function fetchFlow(punto) {
+    const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json` +
+                `?point=${punto.lat},${punto.lon}&key=${TOMTOM_KEY}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      const fd = j.flowSegmentData;
+      const vel    = fd.currentSpeed;
+      const libre  = fd.freeFlowSpeed;
+      const ratio  = libre > 0 ? vel / libre : null;
+      const lvl    = ratio == null ? 0 : ratio >= 0.8 ? 1 : ratio >= 0.5 ? 2 : 3;
+      return {
+        punto_id: punto.id, punto_nome: punto.nome,
+        lat: punto.lat, lon: punto.lon, zona: punto.zona,
+        velocita_attuale: vel, velocita_libera: libre,
+        rapporto_flusso: ratio, livello_conf: lvl,
+        confidence: fd.confidence ?? null, errore: null
+      };
+    } catch(e) {
+      return {
+        punto_id: punto.id, punto_nome: punto.nome,
+        lat: punto.lat, lon: punto.lon, zona: punto.zona,
+        velocita_attuale: null, velocita_libera: null,
+        rapporto_flusso: null, livello_conf: 0,
+        confidence: null, errore: e.message
+      };
+    }
+  }
+
+  // ── SALVA SU SUPABASE ────────────────────────────────────────────────────
+  async function saveToSupabase(rows) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+        method:'POST',
+        headers:{
+          apikey: SUPABASE_ANON,
+          Authorization: `Bearer ${SUPABASE_ANON}`,
+          'Content-Type':'application/json',
+          Prefer:'return=minimal'
+        },
+        body: JSON.stringify(rows)
+      });
+      if (!res.ok) console.warn('Supabase save error', res.status, await res.text());
+    } catch(e) { console.warn('Supabase save failed', e); }
+  }
+
+  // ── FETCH TUTTI I PUNTI ──────────────────────────────────────────────────
+  async function fetchAllPoints() {
+    setStatus('loading');
+    // Chiamate parallele a gruppi di 10 per non saturare l'API
+    const results = [];
+    const CHUNK = 10;
+    for (let i = 0; i < PUNTI.length; i += CHUNK) {
+      const chunk = PUNTI.slice(i, i + CHUNK);
+      const batch = await Promise.all(chunk.map(fetchFlow));
+      results.push(...batch);
+      if (i + CHUNK < PUNTI.length) await sleep(300);
+    }
+    return results;
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // ── AGGIORNA MAPPA ────────────────────────────────────────────────────────
+  function updateMap(rows) {
+    rows.forEach(r => {
+      const m = mapMarkers[r.punto_id];
+      if (!m) return;
+      const col = COLORI[r.livello_conf ?? 0];
+      m.setStyle({ fillColor:col, color: r.livello_conf === 3 ? '#ff0000' : '#222' });
+      const vel  = r.velocita_attuale ? `${Math.round(r.velocita_attuale)} km/h` : 'N/D';
+      const lib  = r.velocita_libera  ? `${Math.round(r.velocita_libera)} km/h` : 'N/D';
+      const st   = ETICH[r.livello_conf ?? 0];
+      const popEl = document.getElementById(`popup-${r.punto_id}`);
+      if (popEl) popEl.innerHTML = `${vel} (libera: ${lib}) — <b style="color:${col}">${st}</b>`;
+    });
+  }
+
+  // ── AGGIORNA TABELLA ──────────────────────────────────────────────────────
+  function renderTable(rows) {
+    const tbody = document.getElementById('loc-tbody');
+    const filtered = activeZona === 'tutti' ? rows : rows.filter(r => r.zona === activeZona);
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nessun dato</td></tr>'; return; }
+
+    filtered.sort((a,b) => (b.livello_conf??0) - (a.livello_conf??0) || a.punto_nome.localeCompare(b.punto_nome));
+
+    tbody.innerHTML = filtered.map(r => {
+      const lvl  = r.livello_conf ?? 0;
+      const vel  = r.velocita_attuale != null ? Math.round(r.velocita_attuale) : '—';
+      const lib  = r.velocita_libera  != null ? Math.round(r.velocita_libera)  : '—';
+      const rat  = r.rapporto_flusso  != null ? Math.round(r.rapporto_flusso * 100) : 0;
+      const zCol = ZONA_COLORS[r.zona] ?? '#889';
+      const barCol = COLORI[lvl];
+      return `<tr>
+        <td style="color:#c0c8e8;font-weight:500">${r.punto_nome}</td>
+        <td><span class="zona-badge" style="background:${zCol}22;color:${zCol}">${r.zona}</span></td>
+        <td><div class="speed-cell l${lvl}">
+          <span class="speed-val">${vel}</span>
+          <span style="font-size:10px;color:#556">km/h</span>
+        </div></td>
+        <td style="text-align:center;color:#667">${lib} km/h</td>
+        <td style="text-align:center">
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+            <div class="ratio-bar-wrap"><div class="ratio-bar" style="width:${rat}%;background:${barCol}"></div></div>
+            <span style="font-size:10px;color:#667">${rat}%</span>
+          </div>
+        </td>
+        <td><span class="badge l${lvl}">${ETICH[lvl]}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── AGGIORNA KPI ──────────────────────────────────────────────────────────
+  function renderKpi(rows) {
+    const valid = rows.filter(r => r.velocita_attuale != null);
+    const avg   = valid.length ? Math.round(valid.reduce((s,r) => s + r.velocita_attuale, 0) / valid.length) : null;
+    const cong  = rows.filter(r => (r.livello_conf ?? 0) === 3).length;
+    const free  = rows.filter(r => (r.livello_conf ?? 0) === 1).length;
+
+    document.getElementById('kpi-avg').textContent  = avg ?? '—';
+    const avgEl = document.getElementById('kpi-avg');
+    avgEl.className = 'kpi-val ' + (avg == null ? 'l0-t' : avg < 30 ? 'l3-t' : avg < 55 ? 'l2-t' : 'l1-t');
+
+    document.getElementById('kpi-cong').textContent = cong;
+    document.getElementById('kpi-free').textContent = free;
+    document.getElementById('kpi-tot').textContent  = rows.length;
+    document.getElementById('kpi-tot2').textContent = rows.length;
+
+    // Zona più critica
+    const byZona = {};
+    rows.forEach(r => {
+      if (!byZona[r.zona]) byZona[r.zona] = { sum:0, cnt:0 };
+      byZona[r.zona].sum += (r.livello_conf ?? 0);
+      byZona[r.zona].cnt++;
+    });
+    let worstZona = '—', worstScore = -1;
+    Object.entries(byZona).forEach(([z, v]) => {
+      const score = v.cnt ? v.sum / v.cnt : 0;
+      if (score > worstScore) { worstScore = score; worstZona = z; }
+    });
+    const wEl = document.getElementById('kpi-zona');
+    wEl.textContent = worstZona;
+    wEl.style.color = ZONA_COLORS[worstZona] ?? '#dde1f0';
+    document.getElementById('kpi-zona-sub').textContent =
+      worstScore > 0 ? `indice congestione ${worstScore.toFixed(2)}` : '';
+  }
+
+  // ── GRAFICO STORICO ───────────────────────────────────────────────────────
+  async function fetchHistory() {
+    const since = new Date(Date.now() - 86400000).toISOString();
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=timestamp,velocita_attuale,zona` +
+      `&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.asc&limit=5000`,
+      { headers:{ apikey:SUPABASE_ANON, Authorization:`Bearer ${SUPABASE_ANON}` } }
+    );
+    return res.json();
+  }
+
+  function renderChart(rows) {
+    // Raggruppa per slot da 15 minuti, calcola media velocità
+    const slots = {};
+    rows.forEach(r => {
+      if (r.velocita_attuale == null) return;
+      const d  = new Date(r.timestamp);
+      const sl = new Date(Math.floor(d / 900000) * 900000).toISOString();
+      if (!slots[sl]) slots[sl] = [];
+      slots[sl].push(r.velocita_attuale);
+    });
+    const labels = Object.keys(slots).sort();
+    const data   = labels.map(l => {
+      const arr = slots[l];
+      return Math.round(arr.reduce((s,v) => s+v, 0) / arr.length);
+    });
+    const colors = data.map(v => v < 30 ? '#ff5252' : v < 55 ? '#ffab00' : '#00c853');
+
+    const ctx = document.getElementById('chartCitta').getContext('2d');
+    if (chartInst) chartInst.destroy();
+    chartInst = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels: labels.map(l => {
+          const d = new Date(l);
+          return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        }),
+        datasets:[{
+          label:'Velocità media (km/h)',
+          data, backgroundColor: colors, borderRadius:2,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false }, tooltip:{ callbacks:{
+          label: ctx => ` ${ctx.parsed.y} km/h`
+        }}},
+        scales:{
+          x:{ ticks:{ color:'#667', font:{size:10}, maxTicksLimit:24 }, grid:{ color:'rgba(255,255,255,0.04)' } },
+          y:{ ticks:{ color:'#667', font:{size:10} }, grid:{ color:'rgba(255,255,255,0.06)' }, min:0, max:120,
+              title:{ display:true, text:'km/h', color:'#556', font:{size:10} } }
+        }
+      }
+    });
+  }
+
+  // ── EVENTI CONGESTIONE ────────────────────────────────────────────────────
+  async function fetchEvents() {
+    const since = new Date(Date.now() - 6 * 3600000).toISOString();
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=timestamp,punto_nome,zona,velocita_attuale,livello_conf` +
+      `&livello_conf=eq.3&timestamp=gte.${encodeURIComponent(since)}&order=timestamp.desc&limit=50`,
+      { headers:{ apikey:SUPABASE_ANON, Authorization:`Bearer ${SUPABASE_ANON}` } }
+    );
+    return res.json();
+  }
+
+  function renderEvents(rows) {
+    const el = document.getElementById('events-list');
+    if (!rows.length) { el.innerHTML = '<div class="empty">Nessuna congestione nelle ultime 6 ore</div>'; return; }
+    el.innerHTML = rows.map(r => {
+      const d   = new Date(r.timestamp);
+      const hm  = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+      const vel = r.velocita_attuale ? `${Math.round(r.velocita_attuale)} km/h` : '';
+      const zCol = ZONA_COLORS[r.zona] ?? '#889';
+      return `<div class="ev-item">
+        <span class="ev-time">${hm}</span>
+        <div class="ev-dot" style="background:#ff5252"></div>
+        <span class="ev-text">
+          <strong>${r.punto_nome}</strong>
+          <span class="zona-badge" style="background:${zCol}22;color:${zCol};margin-left:4px">${r.zona}</span>
+          ${vel ? `— ${vel}` : ''}
+        </span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── STATUS DOT ────────────────────────────────────────────────────────────
+  function setStatus(s) {
+    const d = document.getElementById('statusDot');
+    d.className = 'status-dot ' + s;
+  }
+
+  // ── MAIN REFRESH ──────────────────────────────────────────────────────────
+  async function refreshAll() {
+    setStatus('loading');
+    try {
+      // 1. Fetch live TomTom
+      const rows = await fetchAllPoints();
+      liveData = {};
+      rows.forEach(r => { liveData[r.punto_id] = r; });
+
+      // 2. Save to Supabase
+      await saveToSupabase(rows);
+
+      // 3. Update UI
+      updateMap(rows);
+      renderTable(rows);
+      renderKpi(rows);
+
+      // 4. Fetch & render history + events
+      const [hist, evts] = await Promise.all([ fetchHistory(), fetchEvents() ]);
+      renderChart(hist);
+      renderEvents(evts);
+
+      document.getElementById('last-update').textContent =
+        'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+      setStatus('live');
+    } catch(e) {
+      console.error(e);
+      setStatus('error');
+    }
+  }
+
+  // ── ZONA FILTER ───────────────────────────────────────────────────────────
+  function filterZona(z) {
+    activeZona = z;
+    document.querySelectorAll('.zbtn').forEach(b => b.classList.toggle('active', b.dataset.zona === z));
+    renderTable(Object.values(liveData));
+  }
+
+  // ── COLLAPSE SECTIONS ─────────────────────────────────────────────────────
+  function toggleSec(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+  }
+
+  // ── AUTO REFRESH ──────────────────────────────────────────────────────────
+  refreshAll();
+  setInterval(refreshAll, REFRESH_MS);
+</script>
+</body>
+</html>
