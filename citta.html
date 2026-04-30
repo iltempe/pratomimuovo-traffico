@@ -266,7 +266,7 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmemZlZ2ZhYWd6ZXVwb3BxYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTAwMDcsImV4cCI6MjA5MTc2NjAwN30.E7Mc3T9pOWgRawHvAzi7Bzc3cpJC7FHwQ-OFnMc95E8';
   const TOMTOM_KEY    = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
   const TABLE         = 'rilevazioni_citta';
-  const REFRESH_MS    = 30 * 60 * 1000; // 30 minuti (120 punti × 2 refresh/ora = 240 call/ora)
+  const REFRESH_MS    = 60 * 60 * 1000; // 60 minuti (116 punti × 24 refresh/giorno = 2784 call/giorno)
 
   // ── PUNTI DI MONITORAGGIO (~125 punti su tutta Prato) ────────────────────
   const PUNTI = [
