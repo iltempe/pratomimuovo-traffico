@@ -450,7 +450,7 @@
 
   // ── TOMTOM FLOW FETCH ────────────────────────────────────────────────────
   async function fetchFlow(punto) {
-    const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json` +
+    const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/15/json` +
                 `?point=${punto.lat},${punto.lon}&key=${TOMTOM_KEY}`;
     try {
       const res = await fetch(url);
