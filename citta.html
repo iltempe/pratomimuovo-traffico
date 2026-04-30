@@ -154,7 +154,7 @@
     <div class="status-dot" id="statusDot"></div>
     <div>
       <h1>🗺️ PratoMiMuovo — Traffico tutta la città</h1>
-      <div class="hdr-sub">40 punti di monitoraggio · TomTom Flow API · archivio Supabase</div>
+      <div class="hdr-sub">~125 punti di monitoraggio · TomTom Flow API · archivio Supabase</div>
     </div>
   </div>
   <div class="hdr-right">
@@ -266,65 +266,153 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmemZlZ2ZhYWd6ZXVwb3BxYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTAwMDcsImV4cCI6MjA5MTc2NjAwN30.E7Mc3T9pOWgRawHvAzi7Bzc3cpJC7FHwQ-OFnMc95E8';
   const TOMTOM_KEY    = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
   const TABLE         = 'rilevazioni_citta';
-  const REFRESH_MS    = 5 * 60 * 1000; // 5 minuti
+  const REFRESH_MS    = 30 * 60 * 1000; // 30 minuti (120 punti × 2 refresh/ora = 240 call/ora)
 
-  // ── PUNTI DI MONITORAGGIO (40 punti su tutta Prato) ─────────────────────
+  // ── PUNTI DI MONITORAGGIO (~125 punti su tutta Prato) ────────────────────
   const PUNTI = [
-    // TANGENZIALE / SP8
-    { id:'tang_w1',  nome:'Tang. Ovest – Narnali',         zona:'tangenziale', lat:43.8918, lon:11.0452 },
-    { id:'tang_w2',  nome:'Tang. Ovest – Galceti',         zona:'tangenziale', lat:43.8873, lon:11.0571 },
-    { id:'tang_c1',  nome:'Tang. Centro – Macrolotto',     zona:'tangenziale', lat:43.8782, lon:11.0725 },
-    { id:'tang_c2',  nome:'Tang. Centro – San Paolo',      zona:'tangenziale', lat:43.8755, lon:11.0836 },
-    { id:'tang_e1',  nome:'Tang. Est – Mezzana',           zona:'tangenziale', lat:43.8762, lon:11.0943 },
-    { id:'tang_e2',  nome:'Tang. Est – Soccorso',          zona:'tangenziale', lat:43.8765, lon:11.1078 },
-    { id:'tang_e3',  nome:'Tang. Est – Iolo',              zona:'tangenziale', lat:43.8760, lon:11.1210 },
+    // ── TANGENZIALE / SP8 ─────────────────────────────────────────────────
+    { id:'tang_w1',   nome:'Tang. Ovest – Narnali',          zona:'tangenziale', lat:43.8918, lon:11.0452 },
+    { id:'tang_w2',   nome:'Tang. Ovest – Galceti',          zona:'tangenziale', lat:43.8873, lon:11.0571 },
+    { id:'tang_c1',   nome:'Tang. Centro – Macrolotto',      zona:'tangenziale', lat:43.8782, lon:11.0725 },
+    { id:'tang_c2',   nome:'Tang. Centro – San Paolo',       zona:'tangenziale', lat:43.8755, lon:11.0836 },
+    { id:'tang_e1',   nome:'Tang. Est – Mezzana',            zona:'tangenziale', lat:43.8762, lon:11.0943 },
+    { id:'tang_e2',   nome:'Tang. Est – Soccorso',           zona:'tangenziale', lat:43.8765, lon:11.1078 },
+    { id:'tang_e3',   nome:'Tang. Est – Iolo',               zona:'tangenziale', lat:43.8760, lon:11.1210 },
 
-    // DECLASSATA (Viale L. da Vinci / Via Pistoiese Sud)
-    { id:'decl_w1',  nome:'Declassata – Ovest',            zona:'sud',         lat:43.8675, lon:11.0612 },
-    { id:'decl_c1',  nome:'Declassata – San Giorgio',      zona:'sud',         lat:43.8668, lon:11.0790 },
-    { id:'decl_e1',  nome:'Declassata – Soccorso',         zona:'sud',         lat:43.8672, lon:11.0980 },
-    { id:'decl_e2',  nome:'Declassata – Maliseti',         zona:'sud',         lat:43.8655, lon:11.1140 },
+    // ── DECLASSATA (Viale L. da Vinci) ────────────────────────────────────
+    { id:'decl_w1',   nome:'Declassata – Ovest',             zona:'sud',         lat:43.8675, lon:11.0612 },
+    { id:'decl_c1',   nome:'Declassata – San Giorgio',       zona:'sud',         lat:43.8668, lon:11.0790 },
+    { id:'decl_e1',   nome:'Declassata – Soccorso',          zona:'sud',         lat:43.8672, lon:11.0980 },
+    { id:'decl_e2',   nome:'Declassata – Maliseti',          zona:'sud',         lat:43.8655, lon:11.1140 },
 
-    // CENTRO
-    { id:'ctr_rm',   nome:'Via Roma – Piazza Duomo',       zona:'centro',      lat:43.8797, lon:11.0972 },
-    { id:'ctr_maz',  nome:'Corso Mazzini',                 zona:'centro',      lat:43.8793, lon:11.1015 },
-    { id:'ctr_val',  nome:'Via Valentini',                 zona:'centro',      lat:43.8824, lon:11.0882 },
-    { id:'ctr_fer',  nome:'Via Ferrucci',                  zona:'centro',      lat:43.8810, lon:11.1052 },
-    { id:'ctr_pom',  nome:'Via Pomeria',                   zona:'centro',      lat:43.8760, lon:11.0960 },
-    { id:'ctr_ser',  nome:'Via del Seminario',             zona:'centro',      lat:43.8841, lon:11.0934 },
+    // ── VIA PISTOIESE (SS66) – da centro verso NW ─────────────────────────
+    { id:'pist_c1',   nome:'Via Pistoiese – ingresso città', zona:'centro',      lat:43.8822, lon:11.0872 },
+    { id:'pist_c2',   nome:'Via Pistoiese – Maliseti',       zona:'nord',        lat:43.8870, lon:11.0778 },
+    { id:'pist_c3',   nome:'Via Pistoiese – Filettole',      zona:'nord',        lat:43.8950, lon:11.0708 },
+    { id:'nord_pist1',nome:'Via Pistoiese – Coiano',         zona:'nord',        lat:43.9005, lon:11.0655 },
+    { id:'nord_pist2',nome:'Via Pistoiese – Tavola',         zona:'nord',        lat:43.9125, lon:11.0592 },
+    { id:'pist_n3',   nome:'Via Pistoiese – San Giusto',     zona:'nord',        lat:43.9178, lon:11.0528 },
+    { id:'pist_n4',   nome:'Via Pistoiese – confine comune', zona:'nord',        lat:43.9258, lon:11.0465 },
 
-    // NORD
-    { id:'nord_pist1', nome:'Via Pistoiese – Coiano',      zona:'nord',        lat:43.9005, lon:11.0655 },
-    { id:'nord_pist2', nome:'Via Pistoiese – Tavola',      zona:'nord',        lat:43.9125, lon:11.0592 },
-    { id:'nord_galc',  nome:'Via Galcianese – Nord',       zona:'nord',        lat:43.9050, lon:11.0832 },
-    { id:'nord_canig', nome:'Via Canigiani',               zona:'nord',        lat:43.8958, lon:11.0772 },
-    { id:'nord_acciai',nome:'Via Acciai',                  zona:'nord',        lat:43.8902, lon:11.0900 },
+    // ── VIALE GALILEI ─────────────────────────────────────────────────────
+    { id:'gal_w1',    nome:'Viale Galilei – Ovest',          zona:'centro',      lat:43.8762, lon:11.0735 },
+    { id:'gal_c1',    nome:'Viale Galilei – Centro',         zona:'centro',      lat:43.8760, lon:11.0852 },
+    { id:'gal_e1',    nome:'Viale Galilei – Est',            zona:'centro',      lat:43.8758, lon:11.0948 },
 
-    // SUD
-    { id:'sud_montem', nome:'Via Montemurlo',              zona:'sud',         lat:43.8610, lon:11.0700 },
-    { id:'sud_sp8',    nome:'SP8 Sud – Poggio a Caiano',   zona:'sud',         lat:43.8510, lon:11.0790 },
-    { id:'sud_prov',   nome:'Via Provinciale Pratese',     zona:'sud',         lat:43.8580, lon:11.0950 },
-    { id:'sud_emp',    nome:'Via per Empoli',              zona:'sud',         lat:43.8490, lon:11.1050 },
+    // ── VIA ROMA ──────────────────────────────────────────────────────────
+    { id:'ctr_rm',    nome:'Via Roma – Piazza Duomo',        zona:'centro',      lat:43.8797, lon:11.0972 },
+    { id:'roma_n1',   nome:'Via Roma – Stazione',            zona:'centro',      lat:43.8840, lon:11.0968 },
+    { id:'roma_s1',   nome:'Via Roma – Sud',                 zona:'centro',      lat:43.8762, lon:11.0978 },
 
-    // EST
-    { id:'est_iolo',   nome:'Via di Iolo',                 zona:'est',         lat:43.8698, lon:11.1255 },
-    { id:'est_campi',  nome:'Via per Campi Bisenzio',      zona:'est',         lat:43.8635, lon:11.1350 },
-    { id:'est_serr',   nome:'Via Serragli',                zona:'est',         lat:43.8820, lon:11.1180 },
-    { id:'est_firvi',  nome:'Viale Firenze – Est',         zona:'est',         lat:43.8850, lon:11.1090 },
-    { id:'est_a11',    nome:'Raccordo A11 – casello',      zona:'est',         lat:43.8905, lon:11.1320 },
+    // ── VIA FILZI ─────────────────────────────────────────────────────────
+    { id:'filzi_1',   nome:'Via Filzi – Centro',             zona:'centro',      lat:43.8780, lon:11.1018 },
+    { id:'filzi_2',   nome:'Via Filzi – Nord',               zona:'centro',      lat:43.8808, lon:11.1005 },
 
-    // OVEST
-    { id:'ovest_carr', nome:'Via Carradori',               zona:'ovest',       lat:43.8840, lon:11.0432 },
-    { id:'ovest_montu',nome:'Via Montù',                   zona:'ovest',       lat:43.8760, lon:11.0352 },
-    { id:'ovest_narn', nome:'Via Narnali',                 zona:'ovest',       lat:43.8965, lon:11.0510 },
-    { id:'ovest_galc2',nome:'Via Galcianese – Ovest',      zona:'ovest',       lat:43.8830, lon:11.0495 },
-    { id:'ovest_zarini',nome:'Via Zarini',                 zona:'ovest',       lat:43.8700, lon:11.0490 },
+    // ── VIA CARLO MARX ────────────────────────────────────────────────────
+    { id:'marx_w1',   nome:'Via Carlo Marx – Ovest',         zona:'ovest',       lat:43.8748, lon:11.0672 },
+    { id:'marx_c1',   nome:'Via Carlo Marx – Centro',        zona:'ovest',       lat:43.8742, lon:11.0780 },
+    { id:'marx_e1',   nome:'Via Carlo Marx – Est',           zona:'centro',      lat:43.8738, lon:11.0868 },
 
-    // VIALI / CIRCONVALLAZIONE
-    { id:'viale_mont', nome:'Viale Montegrappa',           zona:'centro',      lat:43.8862, lon:11.0975 },
-    { id:'viale_rep',  nome:'Viale della Repubblica',      zona:'centro',      lat:43.8830, lon:11.1010 },
-    { id:'viale_pie',  nome:'Viale Piave',                 zona:'centro',      lat:43.8775, lon:11.1030 },
-    { id:'viale_tosc', nome:'Viale della Toscana',         zona:'sud',         lat:43.8720, lon:11.0875 },
+    // ── VIA BOLOGNA ───────────────────────────────────────────────────────
+    { id:'bol_c1',    nome:'Via Bologna – Centro',           zona:'centro',      lat:43.8852, lon:11.1042 },
+    { id:'bol_n1',    nome:'Via Bologna – Ospedale',         zona:'nord',        lat:43.8928, lon:11.1132 },
+    { id:'bol_n2',    nome:'Via Bologna – Pieve',            zona:'nord',        lat:43.9010, lon:11.1215 },
+    { id:'bol_n3',    nome:'Via Bologna – Gonfienti',        zona:'nord',        lat:43.9072, lon:11.1288 },
+
+    // ── CENTRO STORICO E VIALI ────────────────────────────────────────────
+    { id:'ctr_maz',   nome:'Corso Mazzini',                  zona:'centro',      lat:43.8793, lon:11.1015 },
+    { id:'ctr_val',   nome:'Via Valentini',                  zona:'centro',      lat:43.8824, lon:11.0882 },
+    { id:'ctr_fer',   nome:'Via Ferrucci',                   zona:'centro',      lat:43.8810, lon:11.1052 },
+    { id:'ctr_pom',   nome:'Via Pomeria',                    zona:'centro',      lat:43.8760, lon:11.0960 },
+    { id:'ctr_ser',   nome:'Via del Seminario',              zona:'centro',      lat:43.8841, lon:11.0934 },
+    { id:'viale_mont',nome:'Viale Montegrappa',              zona:'centro',      lat:43.8862, lon:11.0975 },
+    { id:'viale_rep', nome:'Viale della Repubblica',         zona:'centro',      lat:43.8830, lon:11.1010 },
+    { id:'viale_pie', nome:'Viale Piave',                    zona:'centro',      lat:43.8775, lon:11.1030 },
+    { id:'ctr_conv',  nome:'Via Convenevole',                zona:'centro',      lat:43.8818, lon:11.0905 },
+    { id:'ctr_marc',  nome:'Via Marconi',                    zona:'centro',      lat:43.8840, lon:11.0890 },
+    { id:'ctr_stroz', nome:'Via Strozzi',                    zona:'centro',      lat:43.8852, lon:11.0918 },
+    { id:'ctr_gari',  nome:'Via Garibaldi',                  zona:'centro',      lat:43.8810, lon:11.0942 },
+    { id:'ctr_ricat', nome:'Via Ricasoli',                   zona:'centro',      lat:43.8798, lon:11.1042 },
+    { id:'ctr_cair',  nome:'Via Cairoli',                    zona:'centro',      lat:43.8830, lon:11.1072 },
+    { id:'ctr_ven',   nome:'Viale Vittorio Veneto',          zona:'centro',      lat:43.8865, lon:11.1005 },
+    { id:'ctr_iv',    nome:'Via IV Novembre',                zona:'centro',      lat:43.8842, lon:11.1028 },
+    { id:'ctr_tint',  nome:'Via Tintori',                    zona:'centro',      lat:43.8808, lon:11.1005 },
+    { id:'ctr_alb',   nome:'Via degli Alberti',              zona:'centro',      lat:43.8785, lon:11.0990 },
+    { id:'ctr_grm',   nome:'Via Gramsci',                    zona:'centro',      lat:43.8775, lon:11.0952 },
+    { id:'ctr_aldo',  nome:'Via Aldo Moro',                  zona:'centro',      lat:43.8752, lon:11.0952 },
+    { id:'ctr_circ_n',nome:'Via Circondaria Nord',           zona:'centro',      lat:43.8888, lon:11.0930 },
+    { id:'ctr_circ_s',nome:'Via Circondaria Sud',            zona:'centro',      lat:43.8712, lon:11.0932 },
+    { id:'ctr_bisenz',nome:'Lungarno Bisenzio',              zona:'centro',      lat:43.8820, lon:11.1035 },
+    { id:'ctr_san_d', nome:'Via San Domenico',               zona:'centro',      lat:43.8778, lon:11.0930 },
+    { id:'ctr_arch',  nome:'Via Arcivescovado',              zona:'centro',      lat:43.8818, lon:11.0950 },
+    { id:'ctr_sett',  nome:'Via Settesoldi',                 zona:'centro',      lat:43.8752, lon:11.0820 },
+    { id:'ctr_nenn',  nome:'Via Nenni – Incrocio',           zona:'centro',      lat:43.8762, lon:11.0882 },
+
+    // ── NORD ──────────────────────────────────────────────────────────────
+    { id:'nord_galc', nome:'Via Galcianese – Nord',          zona:'nord',        lat:43.9050, lon:11.0832 },
+    { id:'nord_canig',nome:'Via Canigiani',                  zona:'nord',        lat:43.8958, lon:11.0772 },
+    { id:'nord_acciai',nome:'Via Acciai',                    zona:'nord',        lat:43.8902, lon:11.0900 },
+    { id:'nord_mont1',nome:'Via Montalese – Sud',            zona:'nord',        lat:43.8962, lon:11.0912 },
+    { id:'nord_mont2',nome:'Via Montalese – Nord',           zona:'nord',        lat:43.9088, lon:11.0875 },
+    { id:'nord_trav', nome:'Via Traversa Montalese',         zona:'nord',        lat:43.8932, lon:11.0842 },
+    { id:'nord_buoz', nome:'Via Buozzi',                     zona:'nord',        lat:43.8918, lon:11.0962 },
+    { id:'nord_olmi', nome:'Via degli Olmi',                 zona:'nord',        lat:43.8952, lon:11.0998 },
+    { id:'nord_wald', nome:'Via Baldanzi',                   zona:'nord',        lat:43.8902, lon:11.1042 },
+    { id:'nord_nald', nome:'Via Naldini',                    zona:'nord',        lat:43.8968, lon:11.1082 },
+    { id:'nord_muzzi',nome:'Via Muzzi',                      zona:'nord',        lat:43.8848, lon:11.1118 },
+    { id:'nord_mille',nome:'Via dei Mille',                  zona:'nord',        lat:43.8828, lon:11.1118 },
+    { id:'nord_bezz', nome:'Via Bezzecca',                   zona:'nord',        lat:43.8798, lon:11.1148 },
+    { id:'nord_palco',nome:'Via del Palco',                  zona:'nord',        lat:43.8952, lon:11.0752 },
+    { id:'nord_ss325',nome:'SS325 – Val di Bisenzio',        zona:'nord',        lat:43.9082, lon:11.0498 },
+    { id:'nord_vaian',nome:'SS325 – Vaiano dir.',            zona:'nord',        lat:43.9198, lon:11.0418 },
+
+    // ── SUD ───────────────────────────────────────────────────────────────
+    { id:'sud_montem',nome:'Via Montemurlo',                 zona:'sud',         lat:43.8610, lon:11.0700 },
+    { id:'sud_sp8',   nome:'SP8 Sud – Poggio a Caiano',      zona:'sud',         lat:43.8510, lon:11.0790 },
+    { id:'sud_prov',  nome:'Via Provinciale Pratese',        zona:'sud',         lat:43.8580, lon:11.0950 },
+    { id:'sud_emp',   nome:'Via per Empoli',                 zona:'sud',         lat:43.8490, lon:11.1050 },
+    { id:'sud_barb',  nome:'Via Barberinese',                zona:'sud',         lat:43.8578, lon:11.0882 },
+    { id:'viale_tosc',nome:'Viale della Toscana',            zona:'sud',         lat:43.8720, lon:11.0875 },
+    { id:'sud_cost',  nome:'Via della Costituzione',         zona:'sud',         lat:43.8718, lon:11.0922 },
+    { id:'sud_lipp',  nome:'Via Lippi',                      zona:'sud',         lat:43.8642, lon:11.0818 },
+    { id:'sud_bron',  nome:'Via Bronzino',                   zona:'sud',         lat:43.8608, lon:11.0898 },
+    { id:'sud_lugo',  nome:'Via Lugo',                       zona:'sud',         lat:43.8672, lon:11.0962 },
+    { id:'sud_paron', nome:'Via Paronese',                   zona:'sud',         lat:43.8632, lon:11.1098 },
+    { id:'sud_toscin',nome:'Via Toscanini',                  zona:'sud',         lat:43.8728, lon:11.0872 },
+    { id:'sud_eur',   nome:'Viale Europa',                   zona:'sud',         lat:43.8698, lon:11.0828 },
+    { id:'sud_sanpa', nome:'Via San Paolo',                  zona:'sud',         lat:43.8702, lon:11.0872 },
+
+    // ── EST ───────────────────────────────────────────────────────────────
+    { id:'est_iolo',  nome:'Via di Iolo',                    zona:'est',         lat:43.8698, lon:11.1255 },
+    { id:'est_campi', nome:'Via per Campi Bisenzio',         zona:'est',         lat:43.8635, lon:11.1350 },
+    { id:'est_serr',  nome:'Via Serragli',                   zona:'est',         lat:43.8820, lon:11.1180 },
+    { id:'est_firvi', nome:'Viale Firenze – Est',            zona:'est',         lat:43.8850, lon:11.1090 },
+    { id:'est_a11',   nome:'Raccordo A11 – casello',         zona:'est',         lat:43.8905, lon:11.1320 },
+    { id:'est_fioren',nome:'Via Fiorentina',                 zona:'est',         lat:43.8772, lon:11.1118 },
+    { id:'est_stec',  nome:'Via dello Steccatoio',           zona:'est',         lat:43.8762, lon:11.1178 },
+    { id:'est_bocc',  nome:'Via Boccaccio',                  zona:'est',         lat:43.8818, lon:11.1218 },
+    { id:'est_arno',  nome:'Via Arno – Est',                 zona:'est',         lat:43.8748, lon:11.1298 },
+    { id:'est_grign', nome:'Via Grignano',                   zona:'est',         lat:43.8692, lon:11.1228 },
+    { id:'est_bezz2', nome:'Via Bezzecca – Est',             zona:'est',         lat:43.8788, lon:11.1188 },
+
+    // ── OVEST ─────────────────────────────────────────────────────────────
+    { id:'ovest_carr',nome:'Via Carradori',                  zona:'ovest',       lat:43.8840, lon:11.0432 },
+    { id:'ovest_montu',nome:'Via Montù',                     zona:'ovest',       lat:43.8760, lon:11.0352 },
+    { id:'ovest_narn',nome:'Via Narnali',                    zona:'ovest',       lat:43.8965, lon:11.0510 },
+    { id:'ovest_galc2',nome:'Via Galcianese – Ovest',        zona:'ovest',       lat:43.8830, lon:11.0495 },
+    { id:'ovest_zarini',nome:'Via Zarini',                   zona:'ovest',       lat:43.8700, lon:11.0490 },
+    { id:'ovest_soff',nome:'Via Soffici',                    zona:'ovest',       lat:43.8858, lon:11.0592 },
+    { id:'ovest_cdc', nome:'Via del Crocifisso',             zona:'ovest',       lat:43.8818, lon:11.0818 },
+    { id:'ovest_mari',nome:'Via Marini',                     zona:'ovest',       lat:43.8848, lon:11.0852 },
+    { id:'ovest_galcm',nome:'Via Galcianese – Mezzana',      zona:'ovest',       lat:43.8778, lon:11.0752 },
+    { id:'ovest_prat_nord',nome:'Raccordo Prato Nord',       zona:'ovest',       lat:43.8952, lon:11.0462 },
+
+    // ── MACROLOTTO / ZONA INDUSTRIALE ─────────────────────────────────────
+    { id:'macro_lav_w',nome:'Via Lavoratori – Ovest',        zona:'ovest',       lat:43.8688, lon:11.0622 },
+    { id:'macro_lav_e',nome:'Via Lavoratori – Est',          zona:'ovest',       lat:43.8688, lon:11.0728 },
+    { id:'macro_eur',  nome:'Viale Einstein',                zona:'ovest',       lat:43.8712, lon:11.0758 },
+    { id:'macro_tirso',nome:'Via Tirso',                     zona:'ovest',       lat:43.8622, lon:11.0752 },
+    { id:'macro_m2',   nome:'Via Macrolotto 2',              zona:'ovest',       lat:43.8652, lon:11.0598 },
   ];
 
   // ── COLORI / ETICHETTE ───────────────────────────────────────────────────
