@@ -135,6 +135,64 @@
       .kpi-val { font-size:16px; }
       #map { height:300px; }
     }
+
+    /* ── EDIT / ADD POINT UI ── */
+    .edit-btn {
+      background:none; border:none; cursor:pointer; color:#556; font-size:11px;
+      padding:0 3px; opacity:.6; transition:opacity .15s; vertical-align:middle;
+    }
+    .edit-btn:hover { color:#7b9ef7; opacity:1; }
+    .inline-edit { display:flex; align-items:center; gap:4px; }
+    .inline-edit input {
+      background:#0d0f18; border:1px solid #2a2f50; border-radius:4px;
+      color:#dde1f0; font-size:12px; padding:2px 6px; width:160px;
+    }
+    .inline-edit input:focus { outline:none; border-color:#7b9ef7; }
+    .add-pt-btn {
+      padding:3px 10px; border-radius:6px; font-size:11px; cursor:pointer;
+      background:#1e2240; border:1px solid #2a2f50; color:#aaa; transition:all .15s;
+      white-space:nowrap; flex-shrink:0;
+    }
+    .add-pt-btn:hover, .add-pt-btn.active { border-color:#00c853; color:#00c853; background:#001a0a; }
+    #map.add-mode { cursor:crosshair !important; }
+    /* modal */
+    .modal-overlay {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.78);
+      z-index:3000; align-items:center; justify-content:center;
+    }
+    .modal-overlay.open { display:flex; }
+    .modal-box {
+      background:#131728; border:1px solid #2a2f50; border-radius:12px;
+      padding:22px 24px; min-width:300px; max-width:92vw; width:360px;
+    }
+    .modal-box h3 { font-size:13px; color:#7b9ef7; margin-bottom:14px; }
+    .modal-field { margin-bottom:10px; }
+    .modal-field label { font-size:11px; color:#889; display:block; margin-bottom:4px; }
+    .modal-field input, .modal-field select {
+      width:100%; padding:6px 10px; background:#0d0f18; border:1px solid #2a2f50;
+      border-radius:6px; color:#dde1f0; font-size:12px;
+    }
+    .modal-field input:focus, .modal-field select:focus { outline:none; border-color:#7b9ef7; }
+    .modal-actions { display:flex; gap:8px; margin-top:16px; }
+    .modal-btn { padding:6px 16px; border-radius:6px; font-size:12px; cursor:pointer; border:1px solid; }
+    .modal-btn.ok  { background:#003a1a; border-color:#00c853; color:#00c853; }
+    .modal-btn.ok:hover  { background:#00c853; color:#000; }
+    .modal-btn.cancel { background:#1e2240; border-color:#2a2f50; color:#889; }
+    .modal-btn.cancel:hover { border-color:#ff5252; color:#ff5252; }
+    /* popup inline */
+    .popup-actions { margin-top:7px; display:flex; gap:5px; flex-wrap:wrap; }
+    .popup-btn {
+      padding:2px 8px; border-radius:4px; font-size:10px; cursor:pointer;
+      background:#1e2240; border:1px solid #2a2f50; color:#aaa; white-space:nowrap;
+    }
+    .popup-btn:hover { border-color:#7b9ef7; color:#7b9ef7; }
+    .popup-btn.del:hover { border-color:#ff5252; color:#ff5252; }
+    .popup-rename { margin-top:7px; display:none; }
+    .popup-rename input {
+      width:100%; padding:3px 7px; background:#0d0f18; border:1px solid #2a2f50;
+      border-radius:4px; color:#dde1f0; font-size:11px; margin-bottom:5px; box-sizing:border-box;
+    }
+    .popup-rename input:focus { outline:none; border-color:#7b9ef7; }
   </style>
 </head>
 <body>
@@ -191,6 +249,11 @@
 <div class="section">
   <div class="sec-hdr" onclick="toggleSec('map-body')">
     <h2>🗺 Mappa in tempo reale</h2>
+    <button class="add-pt-btn" id="add-pt-btn"
+      onclick="event.stopPropagation(); toggleAddMode()"
+      title="Clicca sulla mappa per aggiungere un nuovo punto di monitoraggio">
+      ➕ Aggiungi punto
+    </button>
     <div class="legend">
       <span><span class="leg-dot" style="background:#00c853"></span>Scorrevole</span>
       <span><span class="leg-dot" style="background:#ffab00"></span>Rallentato</span>
@@ -260,6 +323,33 @@
   </div>
 </div>
 
+<!-- MODAL AGGIUNGI PUNTO -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal-box">
+    <h3>➕ Nuovo punto di monitoraggio</h3>
+    <div id="add-modal-coords" style="font-size:11px;color:#556;margin-bottom:12px;"></div>
+    <div class="modal-field">
+      <label>Nome del punto (es. Via Roma – centro)</label>
+      <input type="text" id="add-nome" placeholder="Ricerca automatica in corso…" />
+    </div>
+    <div class="modal-field">
+      <label>Zona</label>
+      <select id="add-zona">
+        <option value="centro">Centro</option>
+        <option value="nord">Nord</option>
+        <option value="sud">Sud</option>
+        <option value="est">Est</option>
+        <option value="ovest">Ovest</option>
+        <option value="tangenziale">Tangenziale</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn ok"     onclick="confirmAddPunto()">✓ Aggiungi</button>
+      <button class="modal-btn cancel" onclick="cancelAddPunto()">✗ Annulla</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────────────
   const SUPABASE_URL  = 'https://pfzfegfaagzeupopqaqj.supabase.co';
@@ -267,6 +357,22 @@
   const TOMTOM_KEY    = 'zonHJWkH3yho7bEiGdrAg9UXfaqkuCod';
   const TABLE         = 'rilevazioni_citta';
   const REFRESH_MS    = 60 * 60 * 1000; // 60 minuti (116 punti × 24 refresh/giorno = 2784 call/giorno)
+
+  // ── PERSISTENZA LOCALE (nomi custom + punti aggiunti dall'utente) ────────
+  let customNames  = JSON.parse(localStorage.getItem('pmm_custom_names')  || '{}');
+  let customPoints = JSON.parse(localStorage.getItem('pmm_custom_points') || '[]');
+
+  function saveCustom() {
+    localStorage.setItem('pmm_custom_names',  JSON.stringify(customNames));
+    localStorage.setItem('pmm_custom_points', JSON.stringify(customPoints));
+  }
+
+  // Carica i punti aggiunti dall'utente e applica eventuali rinominations
+  customPoints.forEach(p => { if (!PUNTI.find(x => x.id === p.id)) PUNTI.push(p); });
+  Object.entries(customNames).forEach(([id, nome]) => {
+    const p = PUNTI.find(x => x.id === id);
+    if (p) p.nome = nome;
+  });
 
   // ── PUNTI DI MONITORAGGIO (~125 punti su tutta Prato) ────────────────────
   const PUNTI = [
@@ -447,12 +553,40 @@
     { opacity:0.65, maxZoom:19 }
   ).addTo(map);
 
+  // ── POPUP HTML ────────────────────────────────────────────────────────────
+  function buildPopupHtml(p, isCustom) {
+    const delBtn = isCustom
+      ? `<button class="popup-btn del" onclick="deleteCustomPoint('${p.id}')">🗑️ Elimina</button>`
+      : '';
+    return `<div style="min-width:190px;font-family:'Segoe UI',sans-serif">
+      <b id="pn-${p.id}">${p.nome}</b><br>
+      <span style="font-size:10px;color:#888">Zona: ${p.zona}</span><br>
+      <span id="popup-${p.id}" style="font-size:11px">Caricamento…</span>
+      <div class="popup-actions">
+        <button class="popup-btn" onclick="openPopupRename('${p.id}')">✏️ Rinomina</button>
+        ${delBtn}
+      </div>
+      <div class="popup-rename" id="popup-rename-${p.id}">
+        <input type="text" id="popup-rename-input-${p.id}" value="${p.nome.replace(/"/g,'&quot;')}"
+               onkeydown="if(event.key==='Enter')confirmPopupRename('${p.id}');if(event.key==='Escape')closePopupRename('${p.id}')"/>
+        <div style="display:flex;gap:4px">
+          <button class="popup-btn" onclick="confirmPopupRename('${p.id}')">✓ Salva</button>
+          <button class="popup-btn" onclick="closePopupRename('${p.id}')">✗</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   // Aggiungi marker iniziali (grigi)
   PUNTI.forEach(p => {
+    const isCustom = customPoints.some(x => x.id === p.id);
     const m = L.circleMarker([p.lat, p.lon], {
-      radius:7, fillColor:'#445', color:'#222', weight:1.5, fillOpacity:0.9
+      radius:7, fillColor:'#445',
+      color: isCustom ? '#00c853' : '#222',
+      weight: isCustom ? 2 : 1.5,
+      fillOpacity:0.9
     }).addTo(map);
-    m.bindPopup(`<b>${p.nome}</b><br>Zona: ${p.zona}<br><span id="popup-${p.id}">Caricamento…</span>`);
+    m.bindPopup(buildPopupHtml(p, isCustom));
     mapMarkers[p.id] = m;
   });
 
@@ -564,7 +698,10 @@
       const zCol = ZONA_COLORS[r.zona] ?? '#889';
       const barCol = COLORI[lvl];
       return `<tr>
-        <td style="color:#c0c8e8;font-weight:500">${r.punto_nome}</td>
+        <td style="color:#c0c8e8;font-weight:500" id="tdname-${r.punto_id}">
+          <span id="pname-${r.punto_id}">${r.punto_nome}</span>
+          <button class="edit-btn" onclick="startRenameTable('${r.punto_id}')" title="Rinomina">✏️</button>
+        </td>
         <td><span class="zona-badge" style="background:${zCol}22;color:${zCol}">${r.zona}</span></td>
         <td><div class="speed-cell l${lvl}">
           <span class="speed-val">${vel}</span>
@@ -757,6 +894,166 @@
   // ── AUTO REFRESH ──────────────────────────────────────────────────────────
   refreshAll();
   setInterval(refreshAll, REFRESH_MS);
+
+  // ── RINOMINA DAL POPUP MAPPA ──────────────────────────────────────────────
+  function openPopupRename(id) {
+    const rf = document.getElementById(`popup-rename-${id}`);
+    if (!rf) return;
+    rf.style.display = 'block';
+    const inp = document.getElementById(`popup-rename-input-${id}`);
+    if (inp) { inp.focus(); inp.select(); }
+  }
+  function closePopupRename(id) {
+    const rf = document.getElementById(`popup-rename-${id}`);
+    if (rf) rf.style.display = 'none';
+  }
+  function confirmPopupRename(id) {
+    const inp = document.getElementById(`popup-rename-input-${id}`);
+    if (!inp) return;
+    const newName = inp.value.trim();
+    if (newName) renamePoint(id, newName);
+    closePopupRename(id);
+  }
+
+  // ── RINOMINA DALLA TABELLA ────────────────────────────────────────────────
+  function startRenameTable(id) {
+    const td = document.getElementById(`tdname-${id}`);
+    if (!td) return;
+    const current = document.getElementById(`pname-${id}`)?.textContent || '';
+    td.innerHTML = `<span class="inline-edit">
+      <input id="tbl-rename-${id}" type="text" value="${current.replace(/"/g,'&quot;')}"
+             onkeydown="if(event.key==='Enter')confirmRenameTable('${id}');if(event.key==='Escape')renderTable(Object.values(liveData))"/>
+      <button class="edit-btn" onclick="confirmRenameTable('${id}')" title="Salva">✓</button>
+      <button class="edit-btn" onclick="renderTable(Object.values(liveData))" title="Annulla">✗</button>
+    </span>`;
+    const inp = document.getElementById(`tbl-rename-${id}`);
+    if (inp) { inp.focus(); inp.select(); }
+  }
+  function confirmRenameTable(id) {
+    const inp = document.getElementById(`tbl-rename-${id}`);
+    if (!inp) return;
+    const newName = inp.value.trim();
+    if (newName) renamePoint(id, newName);
+    else renderTable(Object.values(liveData));
+  }
+
+  // ── APPLICA RINOMINA (comune a popup + tabella) ───────────────────────────
+  function renamePoint(id, newName) {
+    const p = PUNTI.find(x => x.id === id);
+    if (!p) return;
+    p.nome = newName;
+    customNames[id] = newName;
+    saveCustom();
+    // Aggiorna popup marker
+    const m = mapMarkers[id];
+    if (m) {
+      const isCustom = customPoints.some(x => x.id === id);
+      m.setPopupContent(buildPopupHtml(p, isCustom));
+    }
+    // Aggiorna nome nel popup aperto (se visibile)
+    const pnEl = document.getElementById(`pn-${id}`);
+    if (pnEl) pnEl.textContent = newName;
+    // Aggiorna nome in liveData
+    if (liveData[id]) liveData[id].punto_nome = newName;
+    // Ri-renderizza tabella
+    renderTable(Object.values(liveData));
+  }
+
+  // ── AGGIUNTA PUNTO DALLA MAPPA ────────────────────────────────────────────
+  let addMode = false;
+  let pendingLatLon = null;
+
+  function toggleAddMode() {
+    addMode = !addMode;
+    const btn   = document.getElementById('add-pt-btn');
+    const mapEl = document.getElementById('map');
+    btn.classList.toggle('active', addMode);
+    mapEl.classList.toggle('add-mode', addMode);
+    btn.title = addMode
+      ? 'Modalità aggiunta attiva — clicca sulla mappa per posizionare il punto'
+      : 'Clicca sulla mappa per aggiungere un nuovo punto di monitoraggio';
+  }
+
+  map.on('click', async function(e) {
+    if (!addMode) return;
+    pendingLatLon = e.latlng;
+    document.getElementById('add-modal-coords').textContent =
+      `📍 ${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+    document.getElementById('add-nome').value = '';
+    document.getElementById('add-modal').classList.add('open');
+    // Reverse geocode Nominatim
+    try {
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${e.latlng.lat}&lon=${e.latlng.lng}&zoom=17&format=json`,
+        { headers: { 'Accept-Language':'it', 'User-Agent':'PratoMiMuovo/1.0' } }
+      );
+      const data = await r.json();
+      const addr = data.address || {};
+      const name = addr.road || addr.pedestrian || addr.path || addr.suburb
+                   || data.display_name?.split(',')[0] || '';
+      document.getElementById('add-nome').value = name;
+    } catch(_) { /* l'utente inserisce manualmente */ }
+  });
+
+  function confirmAddPunto() {
+    const nome = document.getElementById('add-nome').value.trim();
+    const zona = document.getElementById('add-zona').value;
+    if (!nome) { document.getElementById('add-nome').focus(); return; }
+    if (!pendingLatLon) return;
+
+    const id = 'custom_' + Date.now();
+    const p  = { id, nome, zona, lat: pendingLatLon.lat, lon: pendingLatLon.lng };
+    PUNTI.push(p);
+    customPoints.push(p);
+    saveCustom();
+
+    // Marker verde bordato = punto custom
+    const m = L.circleMarker([p.lat, p.lon], {
+      radius:7, fillColor:'#445', color:'#00c853', weight:2.5, fillOpacity:0.9
+    }).addTo(map);
+    m.bindPopup(buildPopupHtml(p, true));
+    mapMarkers[id] = m;
+
+    // Aggiunge riga in liveData con stato N/D iniziale
+    liveData[id] = {
+      punto_id:id, punto_nome:nome, lat:p.lat, lon:p.lon, zona,
+      velocita_attuale:null, velocita_libera:null, rapporto_flusso:null,
+      livello_conf:0, confidence:null, errore:null
+    };
+    renderTable(Object.values(liveData));
+    renderKpi(Object.values(liveData));
+    cancelAddPunto();
+
+    // Fetch immediato TomTom per il nuovo punto
+    fetchFlow(p).then(row => {
+      liveData[id] = row;
+      updateMap([row]);
+      renderTable(Object.values(liveData));
+      renderKpi(Object.values(liveData));
+    });
+  }
+
+  function cancelAddPunto() {
+    document.getElementById('add-modal').classList.remove('open');
+    pendingLatLon = null;
+    if (addMode) toggleAddMode();
+  }
+
+  // ── ELIMINA PUNTO CUSTOM ──────────────────────────────────────────────────
+  function deleteCustomPoint(id) {
+    if (!confirm('Eliminare questo punto di monitoraggio?')) return;
+    const m = mapMarkers[id];
+    if (m) { map.removeLayer(m); delete mapMarkers[id]; }
+    const idx = PUNTI.findIndex(x => x.id === id);
+    if (idx >= 0) PUNTI.splice(idx, 1);
+    const ci = customPoints.findIndex(x => x.id === id);
+    if (ci >= 0) customPoints.splice(ci, 1);
+    delete liveData[id];
+    delete customNames[id];
+    saveCustom();
+    renderTable(Object.values(liveData));
+    renderKpi(Object.values(liveData));
+  }
 </script>
 </body>
 </html>
