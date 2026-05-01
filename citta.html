@@ -193,6 +193,20 @@
       border-radius:4px; color:#dde1f0; font-size:11px; margin-bottom:5px; box-sizing:border-box;
     }
     .popup-rename input:focus { outline:none; border-color:#7b9ef7; }
+
+    /* ── MODAL CONFERMA ELIMINAZIONE ── */
+    .modal-btn.danger {
+      background:#3a0a0a; border-color:#c0392b; color:#ff6b6b;
+    }
+    .modal-btn.danger:hover { background:#4a1010; border-color:#e74c3c; color:#ff5252; }
+    .del-warn { font-size:12px; color:#667; margin:8px 0 16px; line-height:1.5; }
+    .del-nome { color:#dde1f0; font-weight:600; }
+    /* bottone 🗑️ in tabella */
+    .del-row-btn {
+      background:none; border:none; cursor:pointer; font-size:12px;
+      opacity:0.45; padding:1px 3px; border-radius:3px; transition:opacity .15s, background .15s;
+    }
+    .del-row-btn:hover { opacity:1; background:#3a0a0a; }
   </style>
 </head>
 <body>
@@ -323,6 +337,22 @@
   </div>
 </div>
 
+<!-- MODAL CONFERMA ELIMINAZIONE -->
+<div class="modal-overlay" id="del-modal">
+  <div class="modal-box">
+    <h3>🗑️ Elimina punto di monitoraggio</h3>
+    <p class="del-warn">
+      Stai per eliminare il punto <span class="del-nome" id="del-modal-nome"></span>.<br>
+      Verranno cancellati anche tutti i dati storici dal database.<br>
+      <strong style="color:#ff6b6b">Questa operazione è irreversibile.</strong>
+    </p>
+    <div class="modal-actions">
+      <button class="modal-btn danger" onclick="confirmDeletePoint()">🗑️ Elimina definitivamente</button>
+      <button class="modal-btn cancel" onclick="cancelDeletePoint()">✗ Annulla</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL AGGIUNGI PUNTO -->
 <div class="modal-overlay" id="add-modal">
   <div class="modal-box">
@@ -358,13 +388,15 @@
   const TABLE         = 'rilevazioni_citta';
   const REFRESH_MS    = 60 * 60 * 1000; // 60 minuti (116 punti × 24 refresh/giorno = 2784 call/giorno)
 
-  // ── PERSISTENZA LOCALE (nomi custom + punti aggiunti dall'utente) ────────
-  let customNames  = JSON.parse(localStorage.getItem('pmm_custom_names')  || '{}');
-  let customPoints = JSON.parse(localStorage.getItem('pmm_custom_points') || '[]');
+  // ── PERSISTENZA LOCALE (nomi custom + punti aggiunti/eliminati dall'utente) ──
+  let customNames   = JSON.parse(localStorage.getItem('pmm_custom_names')    || '{}');
+  let customPoints  = JSON.parse(localStorage.getItem('pmm_custom_points')   || '[]');
+  let deletedPoints = new Set(JSON.parse(localStorage.getItem('pmm_deleted_points') || '[]'));
 
   function saveCustom() {
-    localStorage.setItem('pmm_custom_names',  JSON.stringify(customNames));
-    localStorage.setItem('pmm_custom_points', JSON.stringify(customPoints));
+    localStorage.setItem('pmm_custom_names',    JSON.stringify(customNames));
+    localStorage.setItem('pmm_custom_points',   JSON.stringify(customPoints));
+    localStorage.setItem('pmm_deleted_points',  JSON.stringify([...deletedPoints]));
   }
 
   // ── PUNTI DI MONITORAGGIO (~125 punti su tutta Prato) ────────────────────
@@ -528,6 +560,10 @@
     const p = PUNTI.find(x => x.id === id);
     if (p) p.nome = nome;
   });
+  // Rimuove i punti eliminati dall'utente
+  for (let i = PUNTI.length - 1; i >= 0; i--) {
+    if (deletedPoints.has(PUNTI[i].id)) PUNTI.splice(i, 1);
+  }
 
   // ── COLORI / ETICHETTE ───────────────────────────────────────────────────
   const ETICH  = { 0:'N/D', 1:'Scorrevole', 2:'Rallentato', 3:'Congestionato' };
@@ -554,20 +590,18 @@
   ).addTo(map);
 
   // ── POPUP HTML ────────────────────────────────────────────────────────────
-  function buildPopupHtml(p, isCustom) {
-    const delBtn = isCustom
-      ? `<button class="popup-btn del" onclick="deleteCustomPoint('${p.id}')">🗑️ Elimina</button>`
-      : '';
+  function buildPopupHtml(p) {
+    const nomeSafe = p.nome.replace(/"/g,'&quot;');
     return `<div style="min-width:190px;font-family:'Segoe UI',sans-serif">
       <b id="pn-${p.id}">${p.nome}</b><br>
       <span style="font-size:10px;color:#888">Zona: ${p.zona}</span><br>
       <span id="popup-${p.id}" style="font-size:11px">Caricamento…</span>
       <div class="popup-actions">
         <button class="popup-btn" onclick="openPopupRename('${p.id}')">✏️ Rinomina</button>
-        ${delBtn}
+        <button class="popup-btn del" onclick="openDeleteConfirm('${p.id}')">🗑️ Elimina</button>
       </div>
       <div class="popup-rename" id="popup-rename-${p.id}">
-        <input type="text" id="popup-rename-input-${p.id}" value="${p.nome.replace(/"/g,'&quot;')}"
+        <input type="text" id="popup-rename-input-${p.id}" value="${nomeSafe}"
                onkeydown="if(event.key==='Enter')confirmPopupRename('${p.id}');if(event.key==='Escape')closePopupRename('${p.id}')"/>
         <div style="display:flex;gap:4px">
           <button class="popup-btn" onclick="confirmPopupRename('${p.id}')">✓ Salva</button>
@@ -586,7 +620,7 @@
       weight: isCustom ? 2 : 1.5,
       fillOpacity:0.9
     }).addTo(map);
-    m.bindPopup(buildPopupHtml(p, isCustom));
+    m.bindPopup(buildPopupHtml(p));
     mapMarkers[p.id] = m;
   });
 
@@ -701,6 +735,7 @@
         <td style="color:#c0c8e8;font-weight:500" id="tdname-${r.punto_id}">
           <span id="pname-${r.punto_id}">${r.punto_nome}</span>
           <button class="edit-btn" onclick="startRenameTable('${r.punto_id}')" title="Rinomina">✏️</button>
+          <button class="del-row-btn" onclick="openDeleteConfirm('${r.punto_id}')" title="Elimina punto">🗑️</button>
         </td>
         <td><span class="zona-badge" style="background:${zCol}22;color:${zCol}">${r.zona}</span></td>
         <td><div class="speed-cell l${lvl}">
@@ -947,8 +982,7 @@
     // Aggiorna popup marker
     const m = mapMarkers[id];
     if (m) {
-      const isCustom = customPoints.some(x => x.id === id);
-      m.setPopupContent(buildPopupHtml(p, isCustom));
+      m.setPopupContent(buildPopupHtml(p));
     }
     // Aggiorna nome nel popup aperto (se visibile)
     const pnEl = document.getElementById(`pn-${id}`);
@@ -1011,7 +1045,7 @@
     const m = L.circleMarker([p.lat, p.lon], {
       radius:7, fillColor:'#445', color:'#00c853', weight:2.5, fillOpacity:0.9
     }).addTo(map);
-    m.bindPopup(buildPopupHtml(p, true));
+    m.bindPopup(buildPopupHtml(p));
     mapMarkers[id] = m;
 
     // Aggiunge riga in liveData con stato N/D iniziale
@@ -1039,20 +1073,68 @@
     if (addMode) toggleAddMode();
   }
 
-  // ── ELIMINA PUNTO CUSTOM ──────────────────────────────────────────────────
-  function deleteCustomPoint(id) {
-    if (!confirm('Eliminare questo punto di monitoraggio?')) return;
+  // ── ELIMINA PUNTO (tutti, con conferma modal) ─────────────────────────────
+  let pendingDeleteId = null;
+
+  function openDeleteConfirm(id) {
+    const p = PUNTI.find(x => x.id === id);
+    if (!p) return;
+    pendingDeleteId = id;
+    document.getElementById('del-modal-nome').textContent = `"${p.nome}"`;
+    document.getElementById('del-modal').classList.add('open');
+    // chiude il popup Leaflet se aperto
+    map.closePopup();
+  }
+
+  function cancelDeletePoint() {
+    pendingDeleteId = null;
+    document.getElementById('del-modal').classList.remove('open');
+  }
+
+  async function confirmDeletePoint() {
+    const id = pendingDeleteId;
+    if (!id) return;
+    cancelDeletePoint();
+
+    // 1. Rimuovi marker dalla mappa
     const m = mapMarkers[id];
     if (m) { map.removeLayer(m); delete mapMarkers[id]; }
+
+    // 2. Rimuovi da PUNTI, customPoints, customNames, liveData
     const idx = PUNTI.findIndex(x => x.id === id);
     if (idx >= 0) PUNTI.splice(idx, 1);
     const ci = customPoints.findIndex(x => x.id === id);
     if (ci >= 0) customPoints.splice(ci, 1);
     delete liveData[id];
     delete customNames[id];
+
+    // 3. Segna come eliminato (persiste anche per punti built-in)
+    deletedPoints.add(id);
     saveCustom();
+
+    // 4. Aggiorna UI
     renderTable(Object.values(liveData));
     renderKpi(Object.values(liveData));
+
+    // 5. Cancella dal database (fire-and-forget)
+    deleteFromSupabase(id);
+  }
+
+  async function deleteFromSupabase(id) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/${TABLE}?punto_id=eq.${encodeURIComponent(id)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            apikey: SUPABASE_ANON,
+            Authorization: `Bearer ${SUPABASE_ANON}`,
+          }
+        }
+      );
+      if (!res.ok) console.warn('Supabase delete error', res.status, await res.text());
+      else console.log(`Punto ${id} eliminato dal database.`);
+    } catch(e) { console.warn('Supabase delete failed', e); }
   }
 </script>
 </body>
