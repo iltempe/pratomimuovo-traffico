@@ -367,13 +367,6 @@
     localStorage.setItem('pmm_custom_points', JSON.stringify(customPoints));
   }
 
-  // Carica i punti aggiunti dall'utente e applica eventuali rinominations
-  customPoints.forEach(p => { if (!PUNTI.find(x => x.id === p.id)) PUNTI.push(p); });
-  Object.entries(customNames).forEach(([id, nome]) => {
-    const p = PUNTI.find(x => x.id === id);
-    if (p) p.nome = nome;
-  });
-
   // ── PUNTI DI MONITORAGGIO (~125 punti su tutta Prato) ────────────────────
   const PUNTI = [
     // ── TANGENZIALE / SP8 ─────────────────────────────────────────────────
@@ -528,6 +521,13 @@
     { id:'macro_tirso',nome:'Via del Purgatorio',                     zona:'ovest',       lat:43.8624346, lon:11.0753839 },
     { id:'macro_m2',   nome:'Via Pollative',              zona:'ovest',       lat:43.8655116, lon:11.0594151 },
   ];
+
+  // Carica punti custom e applica nomi personalizzati (DOPO la dichiarazione di PUNTI)
+  customPoints.forEach(p => { if (!PUNTI.find(x => x.id === p.id)) PUNTI.push(p); });
+  Object.entries(customNames).forEach(([id, nome]) => {
+    const p = PUNTI.find(x => x.id === id);
+    if (p) p.nome = nome;
+  });
 
   // ── COLORI / ETICHETTE ───────────────────────────────────────────────────
   const ETICH  = { 0:'N/D', 1:'Scorrevole', 2:'Rallentato', 3:'Congestionato' };
